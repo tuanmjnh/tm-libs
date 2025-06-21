@@ -1,5 +1,5 @@
 import { delay } from './promise'
-export default class Tasks {
+export class Tasks {
   private totalThread: number = 1
   private sleep: number = 100
   private totalTask: Array<any> = []

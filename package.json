@@ -1,13 +1,16 @@
 {
   "name": "tm-libs",
-  "version": "1.1.0",
+  "version": "1.1.5",
   "description": "tm-libs",
   "main": "index.ts",
   "types": "index.d.ts",
   "files": [
     "index.js",
     "index.d.ts",
-    "index.esm.js"
+    "index.esm.js",
+    "fs-lib.js",
+    "fs-lib.d.ts",
+    "README.md"
   ],
   "type": "commonjs",
   "exports": {
@@ -18,10 +21,11 @@
   "scripts": {
     "build": "node build.js && npm run copy",
     "build:cp": "swc src -d dist --source-maps --copy-files",
-    "build:tsc": "tsc && tsc-alias",
+    "build:tsc": "tsc && tsc-alias && npm run copy",
     "test": "echo \"Error: no test specified\" && exit 1",
     "remove": "@powershell rm -r -fo dist",
-    "copy": "@powershell copy package.json ./dist && @powershell copy README.md ./dist"
+    "copy": "@powershell copy package.json ./dist && @powershell copy README.md ./dist",
+    "publish": "cd dist && npm publish"
   },
   "repository": {
     "type": "git",
@@ -47,11 +51,12 @@
     "@types/crypto-js": "^4.2.2",
     "@types/lodash.keyby": "^4.6.9",
     "@types/node": "^22.10.6",
-    "esbuild": "^0.24.2",
+    "esbuild": "^0.25.5",
     "npm-dts": "^1.3.13",
     "tsc-alias": "^1.8.10",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.7.3"
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
   },
   "browser": {
     "node:fs": false,
