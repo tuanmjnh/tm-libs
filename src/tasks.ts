@@ -113,4 +113,29 @@ export class Tasks {
       this.processed = []
     })
   }
+
+  /**
+ * Callback được gọi trước khi bắt đầu xử lý các task
+ * @param isProcessing trạng thái xử lý
+ * @param totalTask danh sách task
+ */
+  public before?(isProcessing: boolean, totalTask: Array<any>): void | Promise<void> { }
+
+  /**
+ * Callback được gọi sau khi một task được phân cho thread xử lý
+ * @param thread chỉ số thread
+ * @param index chỉ số task
+ * @param task dữ liệu task
+ * @param isProcessing trạng thái xử lý
+ * @param processing danh sách task đang xử lý
+ * @param processed danh sách task đã xử lý
+ */
+  public after?(
+    thread: number,
+    index: number,
+    task: any,
+    isProcessing: boolean,
+    processing: Array<number>,
+    processed: Array<number>
+  ): void | Promise<void> { }
 }

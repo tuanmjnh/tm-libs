@@ -70,72 +70,72 @@ export const getBase64Image = (img: HTMLImageElement) => {
   return dataURL
 }
 
-export const getFileName = (path: string) => {
+export const getFileName = (path: string | null) => {
   try {
     if (!path) return null
     const rs = path.replace(/^.*[\\/]/, '')
     return rs ? rs : null
   } catch (e) { return null }
 }
-export const getFileNameWithoutExtention = (path: string) => {
+export const getFileNameWithoutExtention = (path: string | null) => {
   try {
     if (!path) return null
     const rs = path.replace(/\.[^/.]+$/, "")
     return rs ? rs : null
   } catch (e) { return null }
 }
-export function getExtension(file: string, dot = true, lower = true) {
+export function getExtension(file: string | null, dot = true, lower = true) {
   if (!file) return null
   const regx = /(?:\.([^.]+))?$/
   file = lower ? file.toLowerCase() : file.toUpperCase()
   const match = regx.exec(file)
   return match ? (dot ? match[0] : match[1]) : ''
 }
-export function isImage(value: string) {
+export function isImage(value: string | null) {
   if (!value) return false
   return /\.(gif|jpg|jpe?g|tiff|png|img|ico|jfif|webp|bmp)$/i.test(value.toLowerCase())
 }
-export function isAudio(value: string) {
+export function isAudio(value: string | null) {
   if (!value) return false
   return /\.(mp3|wav|wave|ogg|m4a|3ga|4mp|aa3)$/i.test(value.toLowerCase())
 }
-export function isVideo(value: string) {
+export function isVideo(value: string | null) {
   if (!value) return false
   return /\.(3g2|3gp|3gp2|3gpp|3gpp2|amv|flv|gom|mp4|mov|mpe|mpeg|mpg||kmv|mkv|wvm|wmv)$/i.test(value.toLowerCase())
 }
-export function isPdf(value: string) {
+export function isPdf(value: string | null) {
   if (!value) return false
   return /\.(pdf)$/i.test(value.toLowerCase())
 }
-export function isDoc(value: string) {
+export function isDoc(value: string | null) {
   if (!value) return false
   return /\.(doc|docx)$/i.test(value.toLowerCase())
 }
-export function isSheet(value: string) {
+export function isSheet(value: string | null) {
   if (!value) return false
   return /\.(xls|xlsx)$/i.test(value.toLowerCase())
 }
-export function isFlash(value: string) {
+export function isFlash(value: string | null) {
   if (!value) return false
   const rs = /\.(swf)$/i.test(value.toLowerCase())
   return rs
 }
-export function isCode(value: string) {
+export function isCode(value: string | null) {
   if (!value) return false
   const rs = /\.(sql|json|js)$/i.test(value.toLowerCase())
   return rs
 }
-export function isText(value: string) {
+export function isText(value: string | null) {
   if (!value) return false
   const rs = /\.(txt|rtf)$/i.test(value.toLowerCase())
   return rs
 }
-export function getNameFilePath(fileName: string) {
+export function getNameFilePath(fileName: string | null) {
   if (!fileName) return null
   const tmp = fileName.split('/')
   return tmp[tmp.length - 1]
 }
-export function getBackgroundImage(img: string) {
+export function getBackgroundImage(img: string | null) {
   if (!img) return null
   return `background-size:cover;background-position:50% 50%;background-image:url("${img}")`
 }
