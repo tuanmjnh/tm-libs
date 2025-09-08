@@ -1,51 +1,133 @@
-export function sprintf() {
-  const args = arguments,
-    string = args[0]
-  return string.replace(/%((%)|s|d)/g, function (m: any) {
-    // m is the matched format, e.g. %s, %d
-    let i = 1
-    let val = ''
-    let rs = 0
-    if (m[2]) {
-      val = m[2]
-    } else {
-      val = args[i]
-      // A switch statement so that the formatter can be extended. Default is %s
-      switch (m) {
-        case '%d':
-          rs = parseFloat(val)
-          if (isNaN(rs)) {
-            rs = 0
-          }
-          break
-      }
-      i++
+type Primitive = string | number | boolean;
+
+// Overload signatures
+export function format(template: string, ...args: Primitive[]): string;
+export function format(template: string, values: Record<string, Primitive>): string;
+export function format(template: string, ...args: [...Primitive[], Record<string, Primitive>]): string;
+
+// Implementation
+export function format(
+  template: string,
+  ...args: (Primitive | Record<string, Primitive>)[]
+): string {
+  let result = template;
+  // If the last parameter is object → use for {key}
+  const lastArg = args[args.length - 1];
+  const hasObject = lastArg && typeof lastArg === "object" && !Array.isArray(lastArg);
+
+  if (hasObject) {
+    const obj = lastArg as Record<string, Primitive>;
+    for (const key in obj) {
+      const regexp = new RegExp(`\\{${key}\\}`, "gi");
+      result = result.replace(regexp, String(obj[key]));
     }
-    return rs
-  })
+    args = args.slice(0, -1); // remove object from args
+  }
+
+  // Replace {0}, {1}, ...
+  result = result.replace(/{(\d+)}/g, (match, index) => {
+    const i = Number(index);
+    return i < args.length ? String(args[i]) : match;
+  });
+
+  // Replace %s in order
+  for (const value of args) {
+    result = result.replace(/%s/, String(value));
+  }
+
+  return result;
+}
+/**
+✅ Use %s
+const a = format("Hello %s, you have %s messages", "Jonh", 5);
+
+✅ Use {0}, {1}
+const b = format("Hello {0}, you have {1} messages", "Jonh", 5);
+
+✅ Use {key}
+const c = format("Hello {name}, age {age}", { name: "Jonh", age: 25 });
+
+✅ Mix %s + {key} + {0}
+const d = format("User: %s, Age: {age}, Msg: {0}", "Jonh", "ignored", { age: 25 });
+
+❌ False (TypeScript will report an error)
+const e = format("Hello {name}", "Jonh");
+*/
+
+export function formatArray(
+  templates: string[],
+  ...args: (Primitive | Record<string, Primitive>)[]
+): string[] {
+  return templates.map(tpl => format(tpl, ...(args as any)));
+}
+/**
+const arr = [
+  "Hello %s!",
+  "User {name} has interest {hobbies}",
+  "List: {0}"
+];
+
+console.log(
+  formatArray(arr, "Jonh", { name: "Jonh", hobbies: ["Game", "Code"] })
+);
+ */
+
+export function sprintf(format: string, ...args: (string | number)[]): string {
+  let i = 0;
+
+  return format.replace(/%(%|(\d+)?(\.\d+)?[sdf])/g, (match, type) => {
+    if (type === "%") return "%"; // handle %% → %
+
+    const val = args[i++];
+    const widthMatch = match.match(/%(\d+)/);
+    const precisionMatch = match.match(/\.(\d+)/);
+
+    const width = widthMatch ? parseInt(widthMatch[1], 10) : undefined;
+    const precision = precisionMatch ? parseInt(precisionMatch[1], 10) : undefined;
+
+    let str: string;
+
+    if (match.endsWith("d")) {
+      const num = parseInt(String(val), 10);
+      str = isNaN(num) ? "0" : String(num);
+    } else if (match.endsWith("f")) {
+      const num = parseFloat(String(val));
+      if (isNaN(num)) {
+        str = "0";
+      } else {
+        str = precision !== undefined ? num.toFixed(precision) : String(num);
+      }
+    } else {
+      str = String(val); // %s
+    }
+
+    // Padding if width
+    if (width && str.length < width) {
+      const padChar = match.includes("0") && !match.includes(".") ? "0" : " ";
+      str = padChar.repeat(width - str.length) + str;
+    }
+
+    return str;
+  });
 }
 
-export const format = function (arg: string) {
-  if (arguments.length > 0 && typeof arguments[0] === 'object') {
-    arguments[0].forEach((e: any) => {
-      arg = arg.replace(/%s/, e)
-    })
-    return arg
-  }
-  return [...arguments].reduce((p, c) => p.replace(/%s/, c), arg)
-}
-export const formatKey = function (arg: string) {
-  for (const prop in arguments[0]) {
-    const regexp = new RegExp('\\{' + prop + '\\}', 'gi')
-    arg = arg.replace(regexp, arguments[0][prop])
-  }
-  return arg
-}
-export const formatNumber = function (arg: string) {
-  return arg.replace(/{(\d+)}/g, function (match, number) {
-    return typeof arg[number] !== 'undefined' ? arg[number] : match
-  })
-}
+/**
+console.log(sprintf("Hello %s, you are %d years old", "Jonh", 25));
+// 👉 "Hello Jonh, you are 25 years old"
+
+console.log(sprintf("Progress: 10%% complete"));
+// 👉 "Progress: 10% complete"
+
+console.log(sprintf("Pi ≈ %.2f", Math.PI));
+// 👉 "Pi ≈ 3.14"
+
+console.log(sprintf("Padded number: %05d", 42));
+// 👉 "Padded number: 00042"
+
+console.log(sprintf("Align: %8s!", "Hi"));
+// 👉 "Align:       Hi!"
+ */
+
 
 /**
  * Format bytes as human-readable text.

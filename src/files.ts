@@ -69,6 +69,41 @@ export const getBase64Image = (img: HTMLImageElement) => {
   const dataURL = img.src
   return dataURL
 }
+interface FilePathInfo {
+  fullPath: string
+  fileName: string | null
+  fileNameWithoutExt: string | null
+  extension: string | null
+}
+
+export const parseFilePath = (path: string | null): FilePathInfo | null => {
+  try {
+    if (!path) return null
+
+    const fileName = path.split(/[/\\]/).pop() || null
+    if (!fileName) {
+      return {
+        fullPath: path,
+        fileName: null,
+        fileNameWithoutExt: null,
+        extension: null
+      }
+    }
+
+    const match = fileName.match(/^(.*?)(\.[^.]*)?$/)
+    const fileNameWithoutExt = match && match[1] ? match[1] : null
+    const extension = match && match[2] ? match[2].replace(".", "") : null
+
+    return {
+      fullPath: path,
+      fileName,
+      fileNameWithoutExt,
+      extension
+    }
+  } catch (e) {
+    return null
+  }
+}
 
 export const getFileName = (path: string | null) => {
   try {
@@ -80,8 +115,10 @@ export const getFileName = (path: string | null) => {
 export const getFileNameWithoutExtention = (path: string | null) => {
   try {
     if (!path) return null
-    const rs = path.replace(/\.[^/.]+$/, "")
-    return rs ? rs : null
+    const fileName = path.split(/[/\\]/).pop()
+    if (!fileName) return null
+    const nameWithoutExt = fileName.replace(/\.[^/.]+$/, "")
+    return nameWithoutExt || null
   } catch (e) { return null }
 }
 export function getExtension(file: string | null, dot = true, lower = true) {
