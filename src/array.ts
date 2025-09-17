@@ -40,7 +40,7 @@ export const sortByKey = (arr: any[], key: string) => {
   arr.sort((a, b) => a[key] - b[key])
 }
 
-export const pushIfNotExist = function (array: Array<any>, item: any, key?: string) {
+export const pushIfNotExist = function (array: any[], item: any, key?: string) {
   if (Array.isArray(item)) {
     item.forEach(e => {
       if (key) {
@@ -57,7 +57,7 @@ export const pushIfNotExist = function (array: Array<any>, item: any, key?: stri
     }
   }
 }
-export const pushIfNotExistUpdate = function (array: Array<any>, item: any, key?: string) {
+export const pushIfNotExistUpdate = function (array: any[], item: any, key?: string) {
   if (Array.isArray(item)) {
     item.forEach(e => {
       if (key) {
@@ -85,13 +85,13 @@ export const pushIfNotExistUpdate = function (array: Array<any>, item: any, key?
     }
   }
 }
-export const distinctArray = function (array: Array<any>) {
+export const distinctArray = function (array: any[]) {
   return [...new Set(array)] as any
 }
-export const distinctArrayObject = function (array: Array<any>, key: string) {
+export const distinctArrayObject = function (array: any[], key: string) {
   return [...new Set(array.map(x => x[key]))] as any
 }
-export const sum = function (array: Array<any>, key?: string) {
+export const sum = function (array: any[], key?: string) {
   let total = 0
   if (key) {
     for (let i = 0, length = array.length; i < length; i++) {
@@ -106,9 +106,48 @@ export const sum = function (array: Array<any>, key?: string) {
   }
   return total
 }
-export const max = function (array: Array<any>) {
+export const max = function (array: any[]) {
   return Math.max.apply(null, array)
 }
-export const min = function (array: Array<any>) {
+export const min = function (array: any[]) {
   return Math.min.apply(null, array)
+}
+
+// Simple shuffle function (Fisher-Yates)
+export const shuffleArray = <T>(array: T[]): T[] => {
+  const arr = [...array]
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+      ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+  return arr
+}
+
+export const splitRandomItems = <T>(items: T[], min: number, max: number, skipSmall: number = 0, shuffle: boolean = false): T[][] => {
+  const result: T[][] = []
+
+  if (!items || items.length === 0) return result
+
+  // Copy the array
+  let remain = [...items]
+
+  // Shuffle if needed
+  if (shuffle) remain = shuffleArray(remain)
+
+
+  // If min > total items then take all
+  if (min > remain.length) {
+    result.push(remain)
+  } else {
+    while (remain.length > 0) {
+      let count = Math.floor(Math.random() * (max - min + 1)) + min
+      if (count > remain.length) count = remain.length
+
+      const group = remain.splice(0, count)
+      result.push(group)
+    }
+  }
+
+  // Skip Smaller Groups skipSmall
+  return result.filter(group => group.length >= skipSmall)
 }

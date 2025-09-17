@@ -71,8 +71,9 @@ export const getBase64Image = (img: HTMLImageElement) => {
 }
 interface FilePathInfo {
   fullPath: string
+  dirPath: string | null
   fileName: string | null
-  fileNameWithoutExt: string | null
+  nameWithoutExt: string | null
   extension: string | null
 }
 
@@ -80,24 +81,31 @@ export const parseFilePath = (path: string | null): FilePathInfo | null => {
   try {
     if (!path) return null
 
-    const fileName = path.split(/[/\\]/).pop() || null
+    // Normalize: split by / or \
+    const parts = path.split(/[/\\]/)
+    const fileName = parts.pop() || null
+    const dirPath = parts.length > 0 ? parts.join("/") : null
+
     if (!fileName) {
       return {
         fullPath: path,
+        dirPath,
         fileName: null,
-        fileNameWithoutExt: null,
+        nameWithoutExt: null,
         extension: null
       }
     }
 
+    // Separate name and extension
     const match = fileName.match(/^(.*?)(\.[^.]*)?$/)
-    const fileNameWithoutExt = match && match[1] ? match[1] : null
+    const nameWithoutExt = match && match[1] ? match[1] : null
     const extension = match && match[2] ? match[2].replace(".", "") : null
 
     return {
       fullPath: path,
+      dirPath,
       fileName,
-      fileNameWithoutExt,
+      nameWithoutExt,
       extension
     }
   } catch (e) {
@@ -209,13 +217,4 @@ export function upload(formData: FormData, uploadFieldName: string) {
   // }))
   //)
   return Promise.all(promises)
-}
-
-export function fakeTimeOut(val: any) {
-  return new Promise((resolve) => {
-    // simulating a delay of 2 seconds
-    setTimeout(() => {
-      resolve(val)
-    }, 2000)
-  })
 }
