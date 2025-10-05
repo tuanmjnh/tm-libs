@@ -64,11 +64,11 @@ export const getBase64Image = (img: HTMLImageElement) => {
   canvas.width = img.width
   canvas.height = img.height
 
-  const ctx = canvas.getContext('2d') as any
-  ctx.drawImage(img, 0, 0)
-  const dataURL = img.src
-  return dataURL
+  const ctx = canvas.getContext('2d')
+  ctx?.drawImage(img, 0, 0)
+  return canvas.toDataURL('image/png')
 }
+
 interface FilePathInfo {
   fullPath: string
   dirPath: string | null
@@ -146,7 +146,7 @@ export function isAudio(value: string | null) {
 }
 export function isVideo(value: string | null) {
   if (!value) return false
-  return /\.(3g2|3gp|3gp2|3gpp|3gpp2|amv|flv|gom|mp4|mov|mpe|mpeg|mpg||kmv|mkv|wvm|wmv)$/i.test(value.toLowerCase())
+  return /\.(3g2|3gp|3gp2|3gpp|3gpp2|amv|flv|gom|mp4|mov|mpe|mpeg|mpg|kmv|mkv|wvm|wmv)$/i.test(value.toLowerCase())
 }
 export function isPdf(value: string | null) {
   if (!value) return false
@@ -206,15 +206,22 @@ export function GetBase64Image(img: HTMLImageElement) {
   return dataURL
 }
 
-export function upload(formData: FormData, uploadFieldName: string) {
-  const photos = formData.getAll(uploadFieldName)
-  const promises = photos//.map(x =>
-  // getImage(x).then(img => ({
-  //   id: img,
-  //   originalName: x.name,
-  //   fileName: x.name,
-  //   url: img
-  // }))
-  //)
-  return Promise.all(promises)
+// export function upload(formData: FormData, uploadFieldName: string) {
+//   const photos = formData.getAll(uploadFieldName)
+//   const promises = photos
+//   return Promise.all(promises)
+// }
+export async function upload(formData: FormData, field: string) {
+  const files = formData.getAll(field) as File[];
+  const results = await Promise.all(
+    files.map(async (file) => {
+      const base64 = await getBase64InputFile(file);
+      return {
+        originalName: file.name,
+        fileName: file.name,
+        url: base64,
+      };
+    })
+  );
+  return results;
 }
