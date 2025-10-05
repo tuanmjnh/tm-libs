@@ -139,3 +139,4 @@ export class Tasks {
     processed: Array<number>
   ): void | Promise<void> { }
 }
+export { };

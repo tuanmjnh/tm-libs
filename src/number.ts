@@ -40,3 +40,4 @@ export const generatorIdType = (options: Array<any>, key = 'id') => {
   const keys = options.map(x => x[key])
   return max(keys) + 1
 }
+export { };

@@ -90,3 +90,4 @@ export const lazyLoadImage = async (galleryClass = 'drive-gallery', imageClass =
     images.forEach((img) => imageObserver.observe(img))
   }
 }
+export { };

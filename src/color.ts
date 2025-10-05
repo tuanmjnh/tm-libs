@@ -27,3 +27,4 @@ export const rgbaToHex = (r, g, b, a = 1) => {
       .toUpperCase()
   );
 }
+export { };

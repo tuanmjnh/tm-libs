@@ -73,7 +73,7 @@ interface FilePathInfo {
   fullPath: string
   dirPath: string | null
   fileName: string | null
-  nameWithoutExt: string | null
+  fileNameNoExt: string | null
   extension: string | null
 }
 
@@ -91,21 +91,21 @@ export const parseFilePath = (path: string | null): FilePathInfo | null => {
         fullPath: path,
         dirPath,
         fileName: null,
-        nameWithoutExt: null,
+        fileNameNoExt: null,
         extension: null
       }
     }
 
     // Separate name and extension
     const match = fileName.match(/^(.*?)(\.[^.]*)?$/)
-    const nameWithoutExt = match && match[1] ? match[1] : null
+    const fileNameNoExt = match && match[1] ? match[1] : null
     const extension = match && match[2] ? match[2].replace(".", "") : null
 
     return {
       fullPath: path,
       dirPath,
       fileName,
-      nameWithoutExt,
+      fileNameNoExt,
       extension
     }
   } catch (e) {
@@ -211,7 +211,7 @@ export function GetBase64Image(img: HTMLImageElement) {
 //   const promises = photos
 //   return Promise.all(promises)
 // }
-export async function upload(formData: FormData, field: string) {
+export async function uploadFormData(formData: FormData, field: string) {
   const files = formData.getAll(field) as File[];
   const results = await Promise.all(
     files.map(async (file) => {
@@ -225,3 +225,4 @@ export async function upload(formData: FormData, field: string) {
   );
   return results;
 }
+export { };

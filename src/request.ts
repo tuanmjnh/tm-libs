@@ -24,3 +24,4 @@ export const getUserAgent = function (request: any) {
   if (request) return request.headers['user-agent']
   else return 'undefined'
 }
+export { };

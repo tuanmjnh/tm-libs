@@ -1,39 +1,37 @@
-// const crypto = require('crypto')
-// import { createHash, createHmac, randomBytes } from "crypto"
-import CryptoJS from 'crypto-js'
-export const SECRET = '48955e33-5871-3982-3c1e-e127e7714958'
-interface NewGuidOptions {
-  format: string
-}
-export const MD5Hash = (val: string, secret?: string) => {
-  return CryptoJS.MD5(`${val}${secret ? secret : ''}`).toString()
-}
+import crypto from "crypto";
+import bcrypt from 'bcrypt';
 
-export const SHA256 = (val: string) => {
-  return CryptoJS.SHA256(val).toString()
-}
+export const SECRET = "48955e33-5871-3982-3c1e-e127e7714958";
 
-export const Base64Encode = (str: string) => {
-  return Buffer.from(str).toString('base64')
-}
+// MD5 hash
+export const MD5Hash = (val: string, secret?: string) =>
+  crypto.createHash("md5").update(val + (secret || "")).digest("hex");
 
-export const Base64Decode = (str: string) => {
-  return Buffer.from(str, 'base64').toString('ascii')
-}
+// SHA256 hash
+export const SHA256 = (val: string) =>
+  crypto.createHash("sha256").update(val).digest("hex");
 
-export const NewGuid = (otps?: NewGuidOptions) => {
-  function s4() {
-    return Math.floor((1 + Math.random()) * 0x10000)
-      .toString(16)
-      .substring(1)
-  }
-  if (otps && otps.format && otps.format.toLowerCase() === 'n') {
-    return `${s4()}${s4()}${s4()}${s4()}${s4()}${s4()}${s4()}${s4()}`
-  } else {
-    return `${s4()}${s4()}-${s4()}-${s4()}-${s4()}-${s4()}${s4()}${s4()}`
-  }
-}
+// Base64 encode/decode
+export const Base64Encode = (str: string) =>
+  Buffer.from(str, "utf8").toString("base64");
 
-export const NewToken = () => {
-  return CryptoJS.lib.WordArray.random(64).toString(CryptoJS.enc.Hex)
+export const Base64Decode = (str: string) =>
+  Buffer.from(str, "base64").toString("utf8");
+
+// New GUID (dạng XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX hoặc không dấu "-")
+export const NewGuid = (n?: boolean) => {
+  const s4 = () => Math.floor((1 + Math.random()) * 0x10000).toString(16).slice(-4);
+  return n
+    ? `${s4()}${s4()}${s4()}${s4()}${s4()}${s4()}${s4()}${s4()}`
+    : `${s4()}${s4()}-${s4()}-${s4()}-${s4()}-${s4()}${s4()}${s4()}`;
+};
+
+// New random token (64 bytes → 128 ký tự hex)
+export const NewToken = () => crypto.randomBytes(64).toString("hex");
+
+export const createPassword = async (password: string, salt?: string, lengthSalt?: number) => {
+  salt = salt || await bcrypt.genSalt(lengthSalt || 10)
+  const hashed = await bcrypt.hash(password, salt)
+  return { password: hashed, salt }
 }
+export { };

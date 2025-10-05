@@ -20,3 +20,4 @@ export const getBody = (obj: any, body: any) => {
   })
   return rs
 }
+export { };

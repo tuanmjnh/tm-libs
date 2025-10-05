@@ -1,153 +1,204 @@
+// ===================== ARRAY & TREE UTILITIES ===================== //
+
 /**
-* Convert the given array to a tree structure.
-* @param arr - the original array, where each element contains the id and pid attributes, and pid represents the parent id.
-* @returns Returns the converted tree structure array.
-*/
-export function toTreeOfArray(arr: any[]) {
-  // Initialize the result array
-  const res: any = []
-  // Use Map to store array elements, with id as the key and the element itself as the value
-  const map = new Map()
+ * Convert a flat array to a tree structure.
+ */
+export function arrayToTree<T extends Record<string, any>>(
+  arr: T[],
+  id: keyof T = "id" as keyof T,
+  key: keyof T = "pid" as keyof T
+): (T & { children?: (T & { children?: any[] })[] })[] {
+  if (!Array.isArray(arr)) return [];
 
-  // Traverse the array and store each element in the Map with id as the key
-  arr.forEach((item) => {
-    map.set(item.id, item)
-  })
+  const res: (T & { children?: (T & { children?: any[] })[] })[] = [];
+  const map = new Map<any, T & { children?: (T & { children?: any[] })[] }>();
 
-  // Traverse the array again and organize the elements into a tree structure according to pid
+  // map all nodes by id
   arr.forEach((item) => {
-    // Get the parent element of the current element
-    const parent = item.pid && map.get(item.pid)
-    // If there is a parent element
-    if (parent) {
-      // If the parent element already has child elements, append the current element to the child element array
-      if (parent?.children)
-        parent.children.push(item)
-      // If the parent element has no child elements, create a child element array and use the current element as the first element
-      else
-        parent.children = [item]
+    map.set(item[id], item);
+  });
+
+  arr.forEach((item) => {
+    const parentKey = item[key];
+    if (parentKey != null && map.has(parentKey)) {
+      const parent = map.get(parentKey)!;
+      parent.children = parent.children || [];
+      parent.children.push(item);
+    } else {
+      res.push(item);
     }
-    // If there is no parent element, add the current element directly to the result array
-    else {
-      res.push(item)
-    }
-  })
-  // Return the organized tree structure array
-  return res
+  });
+
+  return res;
 }
 
+/**
+ * Convert a tree structure back to flat array.
+ */
+export function treeToArray<T extends Record<string, any>>(
+  tree: (T & { children?: T[] })[],
+  id: keyof T = "id" as keyof T,
+  key: keyof T = "pid" as keyof T
+): T[] {
+  if (!Array.isArray(tree)) return [];
+
+  const result: T[] = [];
+
+  function traverse(nodes: (T & { children?: T[] })[], parentId?: any) {
+    for (const node of nodes) {
+      const item = { ...node };
+
+      if (parentId !== undefined) {
+        (item as any)[key] = parentId;
+      }
+
+      delete (item as any).children;
+      result.push(item);
+
+      if (node.children?.length) {
+        traverse(node.children, node[id]);
+      }
+    }
+  }
+
+  traverse(tree);
+  return result;
+}
+
+/**
+ * Sort array by key (auto detect number/string)
+ */
 export const sortByKey = (arr: any[], key: string) => {
-  arr.sort((a, b) => a[key] - b[key])
-}
+  return arr.sort((a, b) => {
+    const av = a[key];
+    const bv = b[key];
+    return typeof av === "number" && typeof bv === "number"
+      ? av - bv
+      : String(av).localeCompare(String(bv));
+  });
+};
 
-export const pushIfNotExist = function (array: any[], item: any, key?: string) {
-  if (Array.isArray(item)) {
-    item.forEach(e => {
-      if (key) {
-        if (array.findIndex(x => x[key] === e[key]) < 0) array.push(e)
-      } else {
-        if (array.indexOf(e) < 0) array.push(e)
-      }
-    })
-  } else {
+/**
+ * Push item(s) to array if not exist
+ */
+export const pushIfNotExist = <T>(array: T[], item: T | T[], key?: keyof T) => {
+  const add = (el: T) => {
     if (key) {
-      if (array.findIndex(x => x[key] === item[key]) < 0) array.push(item)
-    } else {
-      if (array.indexOf(item) < 0) array.push(item)
+      if (!array.some((x) => x[key] === el[key])) array.push(el);
+    } else if (!array.includes(el)) {
+      array.push(el);
     }
-  }
-}
-export const pushIfNotExistUpdate = function (array: any[], item: any, key?: string) {
-  if (Array.isArray(item)) {
-    item.forEach(e => {
-      if (key) {
-        const arr = array.find(x => x[key] === e[key])
-        if (arr) {
-          Object.keys(arr).forEach(k => {
-            arr[k] = e[k]
-          })
-        } else array.push(e)
-      } else {
-        if (array.indexOf(e) < 0) array.push(e)
-      }
-    })
-  } else {
-    if (key) {
-      const arr = array.find(x => x[key] === item[key])
-      if (arr) {
-        Object.keys(arr).forEach(k => {
-          arr[k] = item[k]
-        })
-      } else array.push(item)
-      // if (array.findIndex(x => x[key] === element[key]) < 0) array.push(element)
-    } else {
-      if (array.indexOf(item) < 0) array.push(item)
-    }
-  }
-}
-export const distinctArray = function (array: any[]) {
-  return [...new Set(array)] as any
-}
-export const distinctArrayObject = function (array: any[], key: string) {
-  return [...new Set(array.map(x => x[key]))] as any
-}
-export const sum = function (array: any[], key?: string) {
-  let total = 0
-  if (key) {
-    for (let i = 0, length = array.length; i < length; i++) {
-      const number = parseInt(array[i][key])
-      if (number) total = total + number
-    }
-  } else {
-    for (let i = 0, length = array.length; i < length; i++) {
-      const number = parseInt(array[i])
-      if (number) total = total + number
-    }
-  }
-  return total
-}
-export const max = function (array: any[]) {
-  return Math.max.apply(null, array)
-}
-export const min = function (array: any[]) {
-  return Math.min.apply(null, array)
-}
+  };
+  (Array.isArray(item) ? item : [item]).forEach(add);
+};
 
-// Simple shuffle function (Fisher-Yates)
+/**
+ * Push item(s) or update if exist (based on key)
+ */
+export const pushIfNotExistUpdate = <T>(
+  array: T[],
+  item: T | T[],
+  key?: keyof T
+) => {
+  const updateOrAdd = (el: T) => {
+    if (key) {
+      const found = array.find((x) => x[key] === el[key]);
+      if (found) {
+        Object.assign(found, el);
+      } else {
+        array.push(el);
+      }
+    } else if (!array.includes(el)) {
+      array.push(el);
+    }
+  };
+
+  (Array.isArray(item) ? item : [item]).forEach(updateOrAdd);
+};
+
+/**
+ * Return distinct primitive values
+ */
+export const distinctArray = <T>(array: T[]) => [...new Set(array)];
+
+/**
+ * Return distinct objects by key
+ */
+export const distinctArrayObject = <T extends Record<string, any>>(
+  arr: T[],
+  key: keyof T
+): T[] => {
+  const seen = new Set<any>();
+  return arr.filter((item) => {
+    const val = item[key];
+    if (seen.has(val)) return false;
+    seen.add(val);
+    return true;
+  });
+};
+
+/**
+ * Sum values in array
+ */
+export const sum = (array: any[], key?: string): number => {
+  let total = 0;
+  for (let i = 0; i < array.length; i++) {
+    const val = key ? array[i][key] : array[i];
+    const num = Number(val);
+    if (!isNaN(num)) total += num;
+  }
+  return total;
+};
+
+/**
+ * Return maximum value from array
+ */
+export const max = (array: any[]): number => Math.max(...array);
+
+/**
+ * Return minimum value from array
+ */
+export const min = (array: any[]): number => Math.min(...array);
+
+/**
+ * Shuffle array (Fisher-Yates)
+ */
 export const shuffleArray = <T>(array: T[]): T[] => {
-  const arr = [...array]
+  const arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-      ;[arr[i], arr[j]] = [arr[j], arr[i]]
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
   }
-  return arr
-}
+  return arr;
+};
 
-export const splitRandomItems = <T>(items: T[], min: number, max: number, skipSmall: number = 0, shuffle: boolean = false): T[][] => {
-  const result: T[][] = []
+/**
+ * Split array into random groups with min-max count
+ */
+export const splitRandomItems = <T>(
+  items: T[],
+  min: number,
+  max: number,
+  skipSmall = 0,
+  shuffle = false
+): T[][] => {
+  const result: T[][] = [];
 
-  if (!items || items.length === 0) return result
+  if (!Array.isArray(items) || items.length === 0) return result;
+  if (min <= 0 || max < min) return [items];
 
-  // Copy the array
-  let remain = [...items]
+  let remain = [...items];
+  if (shuffle) remain = shuffleArray(remain);
 
-  // Shuffle if needed
-  if (shuffle) remain = shuffleArray(remain)
+  while (remain.length > 0) {
+    let count = Math.floor(Math.random() * (max - min + 1)) + min;
+    if (count > remain.length) count = remain.length;
 
-
-  // If min > total items then take all
-  if (min > remain.length) {
-    result.push(remain)
-  } else {
-    while (remain.length > 0) {
-      let count = Math.floor(Math.random() * (max - min + 1)) + min
-      if (count > remain.length) count = remain.length
-
-      const group = remain.splice(0, count)
-      result.push(group)
-    }
+    const group = remain.splice(0, count);
+    result.push(group);
   }
 
-  // Skip Smaller Groups skipSmall
-  return result.filter(group => group.length >= skipSmall)
-}
+  return result.filter((g) => g.length >= skipSmall);
+};
+
+export { };
