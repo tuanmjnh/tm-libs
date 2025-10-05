@@ -56,4 +56,4 @@ export const toDate = function (timestamp: string, format?: string) {
   else
     return moment(ts).toDate()
 }
-export { };
+export { moment };

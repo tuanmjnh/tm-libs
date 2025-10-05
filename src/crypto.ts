@@ -34,4 +34,5 @@ export const createPassword = async (password: string, salt?: string, lengthSalt
   const hashed = await bcrypt.hash(password, salt)
   return { password: hashed, salt }
 }
-export { };
+
+export { crypto, bcrypt };

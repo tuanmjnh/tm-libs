@@ -1,6 +1,6 @@
 {
   "name": "tm-libs",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "tm-libs",
   "type": "module",
   "main": "dist/index.cjs",
