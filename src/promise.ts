@@ -1,4 +1,4 @@
-import { random } from './number'
+import { random } from './number.js'
 export const delay = (ms: number) => new Promise(res => setTimeout(res, ms))
 export const delayRandom = (msMin: number, msMax: number) => new Promise(res => setTimeout(res, random(msMin, msMax)))
 

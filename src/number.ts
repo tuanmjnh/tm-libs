@@ -1,4 +1,4 @@
-import { max } from './array'
+import { max } from './array.js'
 export const random = (min: number, max: number) => {
   const minCeiled = Math.ceil(min);
   const maxFloored = Math.floor(max);

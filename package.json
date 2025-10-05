@@ -1,31 +1,39 @@
 {
   "name": "tm-libs",
-  "version": "1.2.4",
+  "version": "1.2.8",
   "description": "tm-libs",
   "type": "module",
-  "main": "dist/index.cjs",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js",
+      "require": "./dist/*.js",
+      "default": "./dist/*.js"
     }
   },
   "files": [
-    "README.md",
     "dist"
   ],
   "scripts": {
     "build": "node build.mjs",
     "build:cp": "swc src -d dist --source-maps --copy-files",
     "build:tsc": "tsc && tsc-alias && npm run copy",
-    "test": "ts-node test/test.ts",
+    "test": "ts-node --esm test/test.ts",
+    "test:npx": "npx ts-node test/test.ts",
     "remove": "@powershell rm -r -fo dist",
     "copy": "@powershell copy package.json ./dist && @powershell copy README.md ./dist",
-    "publish": "npm publish",
-    "publish:lib": "npm run build && cd dist && npm publish"
+    "publish:lib": "npm run build && cd dist && npm publish",
+    "git:cache": "git rm -r --cached . && git add ."
   },
-  "prepare": "npm run build:tsc",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/tuanmjnh/tm-libs.git"
@@ -62,10 +70,5 @@
   },
   "overrides": {
     "tmp": "^0.2.4"
-  },
-  "browser": {
-    "node:fs": false,
-    "node:path": false
-  },
-  "module": "dist/index.js"
+  }
 }

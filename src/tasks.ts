@@ -1,4 +1,4 @@
-import { delay } from './promise'
+import { delay } from './promise.js'
 export class Tasks {
   private totalThread: number = 1
   private sleep: number = 100

@@ -1,14 +1,31 @@
-const STORAGE_PREFIX = "app:"; //✅ replace with a unique prefix for the project
-
-interface StorageData<T = any> {
-  value: T;
-  expire: number | null;
-}
-
+const STORAGE_PREFIX = "app:";
 type StorageMode = "expire" | "normal";
 
-// ✅ Factory creates storage (can expire or not)
-function createStorage(storage: Storage, prefix = STORAGE_PREFIX, mode: StorageMode = "expire") {
+// 1. Khai báo Interface No-op (Chỉ dành cho Node.js)
+interface StorageInstance {
+  length: number;
+  key(index: number): string | null;
+  setItem(key: string, value: string): void;
+  getItem(key: string): string | null;
+  removeItem(key: string): void;
+  clear(): void;
+}
+
+// 2. Khai báo Implement No-op (Lớp giả lập cho Node.js)
+// Lớp này không làm gì cả, chỉ giúp tránh lỗi runtime.
+const NoOpStorage: StorageInstance = {
+  length: 0,
+  key: () => null,
+  setItem: () => { },
+  getItem: () => null,
+  removeItem: () => { },
+  clear: () => { },
+};
+
+// 3. Hàm tạo có kiểm tra điều kiện (Isomorphic Factory)
+function createStorage(storage: StorageInstance, prefix = STORAGE_PREFIX, mode: StorageMode = "expire") {
+  // [GIỮ NGUYÊN LOGIC CÁC HÀM SET/GET/REMOVE/CLEAR/KEYS]
+
   function set<T = any>(key: string, value: T, expireSeconds?: number): void {
     try {
       const fullKey = prefix + key;
@@ -19,7 +36,7 @@ function createStorage(storage: Storage, prefix = STORAGE_PREFIX, mode: StorageM
 
       // expire mode
       const expire = expireSeconds ? Date.now() + expireSeconds * 1000 : null;
-      const data: StorageData<T> = { value, expire };
+      const data = { value, expire };
       storage.setItem(fullKey, JSON.stringify(data));
     } catch (err) {
       console.error("[Storage:set] Error:", err);
@@ -37,7 +54,7 @@ function createStorage(storage: Storage, prefix = STORAGE_PREFIX, mode: StorageM
       }
 
       // expire mode
-      const data = JSON.parse(raw) as StorageData<T>;
+      const data = JSON.parse(raw) as { value: T, expire: number | null };
       if (data && (data.expire === null || data.expire >= Date.now())) {
         return data.value;
       }
@@ -85,19 +102,28 @@ function createStorage(storage: Storage, prefix = STORAGE_PREFIX, mode: StorageM
   return { set, get, remove, clear, keys };
 }
 
-/**
-* ✅ Aggregate LocalStorage
-* Modes can be selected: expire | normal
-*/
-export const createLocalStorage = (mode: StorageMode = "expire") =>
-  createStorage(window.localStorage, STORAGE_PREFIX, mode);
+// 4. Kiểm tra sự tồn tại của Window
+const getBrowserStorage = (type: 'local' | 'session') => {
+  if (typeof window !== 'undefined') {
+    return type === 'local' ? window.localStorage : window.sessionStorage;
+  }
+  // Trả về đối tượng No-op khi chạy trong Node.js
+  return NoOpStorage as Storage;
+}
 
 /**
-* ✅ Aggregate SessionStorage
-* Modes can be selected: expire | normal
-*/
+ * ✅ Aggregate LocalStorage
+ * Modes can be selected: expire | normal
+ */
+export const createLocalStorage = (mode: StorageMode = "expire") =>
+  createStorage(getBrowserStorage('local'), STORAGE_PREFIX, mode);
+
+/**
+ * ✅ Aggregate SessionStorage
+ * Modes can be selected: expire | normal
+ */
 export const createSessionStorage = (mode: StorageMode = "expire") =>
-  createStorage(window.sessionStorage, STORAGE_PREFIX, mode);
+  createStorage(getBrowserStorage('session'), STORAGE_PREFIX, mode);
 
 // ⚡ Initialize 4 quick variables
 export const localStorage = createLocalStorage("expire");

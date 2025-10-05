@@ -10,7 +10,7 @@ interface IPagination {
   total: number
   totalPage: number
 }
-export function TMPagination({ items, offset = 0, limit = 10 }: IOptions): IPagination {
+export function TMPagination(items: Array<any>, offset: number, limit: number): IPagination {
   if (!items || items.length < 1) return { items: items, page: 0, limit: 0, total: 0, totalPage: 0 }
   const total = items.length
   const totalPage = Math.ceil(total / limit)

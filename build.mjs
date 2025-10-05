@@ -3,23 +3,32 @@ import { build } from "esbuild";
 import fs from "fs";
 import path from "path";
 import { createRequire } from "module";
+import { execSync } from "child_process"; // 👈 Thêm để chạy lệnh tsc
 
 const require = createRequire(import.meta.url);
-const { Generator } = require("npm-dts");
+// ❌ Loại bỏ npm-dts: const { Generator } = require("npm-dts");
 
 const pkg = JSON.parse(fs.readFileSync("./package.json", "utf8"));
 const { dependencies = {} } = pkg;
+
+// 🧹 Xóa dist cũ
+if (fs.existsSync("./dist")) {
+  fs.rmSync("./dist", { recursive: true, force: true });
+  console.log("🧹 Removed old dist folder");
+}
 
 const sharedConfig = {
   bundle: true,
   minify: true,
   sourcemap: false,
   target: "esnext",
+  platform: "node", // 👈 FIX 1: Đổi sang "node"
+  format: "esm",
   external: Object.keys(dependencies),
 };
 
 // 📦 Build từng file .ts
-async function buildFile(entry, options = {}) {
+async function buildFile(entry) {
   const srcPath = `src/${entry}.ts`;
   if (!fs.existsSync(srcPath)) return;
 
@@ -30,16 +39,9 @@ async function buildFile(entry, options = {}) {
     ...sharedConfig,
     entryPoints: [srcPath],
     outfile: outFile,
-    platform: options.platform || "neutral",
-    format: options.format || "esm",
   });
 
-  await new Generator({
-    entry: srcPath,
-    output: `dist/${entry}.d.ts`,
-  }).generate();
-
-  console.log(`✅ Built: ${entry}.js + ${entry}.d.ts`);
+  console.log(`✅ Built: ${entry}.js`);
 }
 
 // 📂 Quét toàn bộ file .ts trong src/
@@ -50,113 +52,65 @@ function getSourceFiles() {
     .map((f) => f.replace(/\.ts$/, ""));
 }
 
-// 🧩 Build toàn bộ lib
+// 🧩 Build toàn bộ
 async function buildAll() {
   fs.mkdirSync("./dist", { recursive: true });
 
   const libs = getSourceFiles();
 
-  // 🏗 Nếu có index.ts → build riêng
-  if (libs.includes("index")) {
-    await buildFile("index", { platform: "neutral", format: "esm" });
-
-    await build({
-      ...sharedConfig,
-      entryPoints: ["src/index.ts"],
-      outfile: "dist/index.cjs",
-      platform: "node",
-      format: "cjs",
-    });
-  } else {
-    // 🚀 Nếu KHÔNG có index.ts → Tự sinh file index.js + index.d.ts
-    await generateIndexFile(libs);
+  // 🏗 Build từng file riêng
+  for (const lib of libs) {
+    await buildFile(lib);
   }
 
-  // ⚙️ Build từng module riêng
-  for (const lib of libs.filter((f) => f !== "index")) {
-    await buildFile(lib, { platform: "node", format: "cjs" });
-  }
-
-  // 🧪 Tạo file test.ts
-  createTestFile(libs);
+  // 🧱 Tạo index.js & index.d.ts tự động
+  generateIndexFile(libs);
 
   // 📝 Cập nhật package.json
   updatePackageJson();
 
-  // 📘 Copy README.md
-  // copyReadme();
+  // ⚙️ FIX 2: Tạo tất cả file .d.ts bằng TSC
+  console.log("⚙️ Generating declaration files (.d.ts) with TSC...");
+  execSync("tsc --emitDeclarationOnly", { stdio: "inherit" });
+  console.log("✅ Declarations generated successfully.");
+
+  // 📝 FIX 3: Copy package.json vào dist cho lệnh publish:lib
+  fs.copyFileSync("./package.json", "./dist/package.json");
+  console.log("📋 Copied package.json to dist/");
+  // (Bạn có thể thêm copy README.md tại đây nếu cần)
 
   console.log("🎉 Build hoàn tất!");
 }
 
-// 🧪 Tạo test file
-function createTestFile(modules) {
-  fs.mkdirSync("./test", { recursive: true });
-
-  const importLines = modules
-    .map((name) => `import * as ${camelCase(name)} from "../dist/${name}.js";`)
-    .join("\n");
-
-  const exportLines = modules.map((name) => `  ${camelCase(name)},`).join("\n");
-
-  const content = `// ⚡️ Auto-generated test file
-${importLines}
-
-console.log("✅ Test loaded modules:", {
-${exportLines}
-});
-`;
-
-  fs.writeFileSync("./test/test.ts", content);
-  console.log("🧪 Generated test.ts for quick import testing");
-}
-
-// 🧱 Tự sinh file index.js và index.d.ts
+// 🧱 Tạo index.js và index.d.ts
 function generateIndexFile(modules) {
-  const imports = modules
+  const jsContent = modules
     .map((name) => `export * as ${camelCase(name)} from "./${name}.js";`)
     .join("\n");
 
-  const dts = modules
-    .map((name) => `export * as ${camelCase(name)} from "./${name}.js";`)
+  // Index.d.ts sẽ được tạo đầy đủ bởi TSC, đây là template
+  const dtsContent = modules
+    .map((name) => `export * from "./${name}";`)
     .join("\n");
 
-  fs.writeFileSync("./dist/index.js", imports);
-  fs.writeFileSync("./dist/index.d.ts", dts);
-
-  console.log("🧩 Auto-generated index.js & index.d.ts");
+  fs.writeFileSync("./dist/index.js", jsContent);
+  fs.writeFileSync("./dist/index.d.ts", dtsContent);
+  console.log("🧩 Generated index.js & index.d.ts (template)");
 }
 
-// 📝 Cập nhật package.json
+// 📝 Cập nhật package.json (cần thiết nếu script bị đổi)
 function updatePackageJson() {
   const pkgPath = "./package.json";
   const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
 
-  const distFiles = fs
-    .readdirSync("./dist")
-    .filter((f) => f.endsWith(".js") || f.endsWith(".d.ts"))
-    .map((f) => `dist/${f}`);
-
-  pkg.files = Array.from(new Set(["dist", "README.md"])).sort(); //...distFiles,
-  pkg.main = "dist/index.cjs";
+  pkg.files = ["dist"];
+  pkg.main = "dist/index.js";
   pkg.module = "dist/index.js";
   pkg.types = "dist/index.d.ts";
 
   fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
-  console.log("📦 Updated package.json → files, main/module/types");
+  console.log("📦 Updated package.json → main/module/types");
 }
-
-// 📋 Copy README.md
-// function copyReadme() {
-//   const src = "./README.md";
-//   const dest = "./dist/README.md";
-//   if (fs.existsSync(src)) {
-//     fs.copyFileSync(src, dest);
-//     console.log("📘 Copied README.md → dist/");
-//   } else {
-//     console.warn("⚠️ README.md not found, skipped copy.");
-//   }
-// }
 
 // 🐪 camelCase helper
 function camelCase(str) {

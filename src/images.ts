@@ -1,4 +1,4 @@
-import { delay } from './promise'
+import { delay } from './promise.js'
 
 const createImageElement = (url: string, index: number) => {
   const div = document.createElement('div');
