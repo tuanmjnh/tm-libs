@@ -103,7 +103,7 @@ function updatePackageJson() {
   const pkgPath = "./package.json";
   const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
 
-  pkg.files = ["dist"];
+  pkg.files = ["dist", "README.md"];
   pkg.main = "dist/index.js";
   pkg.module = "dist/index.js";
   pkg.types = "dist/index.d.ts";
