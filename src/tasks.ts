@@ -1,142 +1,194 @@
-import { delay } from './promise.js'
-export class Tasks {
-  private totalThread: number = 1
-  private sleep: number = 100
-  private totalTask: Array<any> = []
-  private threads: Array<number> = []
-  private processing: Array<number> = []
-  private processed: Array<number> = []
-  public IsProcessing: boolean = false
-  private IsPause: boolean = false
-  // private doWork: () => void
+import { delay } from './promise.js';
 
-  constructor() {//totalThread: number, totalTask: number, sleep?: number,isProcessing: boolean, isPause: boolean,
-    // this.totalThread = totalThread
-    // this.totalTask = totalTask
-    // this.sleep = sleep || 100
-    // this.IsProcessing = isProcessing
-    // this.IsPause = isPause
-    // for (let index = 0; index < this.totalThread; index++) this.threads[index] = -1
+// Define the structure for the work function passed to the class
+type WorkCallback<T> = (
+  threadIndex: number,
+  taskIndex: number,
+  taskData: T
+) => Promise<any>;
+
+// Define the callbacks for lifecycle events
+type BeforeCallback<T> = (isProcessing: boolean, totalTasks: T[]) => void | Promise<void>;
+type AfterCallback = (isProcessing: boolean, processedCount: number, totalCount: number) => void | Promise<void>;
+
+/**
+ * A concurrent task runner that manages a fixed number of workers ("threads")
+ * to process an array of tasks asynchronously.
+ */
+export class TaskPool<T> {
+  // --- Configuration ---
+  private totalThread: number = 1;
+  private sleep: number = 10; // Delay between worker checks (for throttling the loop)
+
+  // --- State ---
+  private totalTask: T[] = [];
+  private taskIndex: number = 0; // Index of the next task to assign
+  private processingIndices: Set<number> = new Set(); // Indices of tasks currently running
+  private processedIndices: number[] = []; // Indices of tasks that are complete
+  private isProcessing: boolean = false;
+  private isPaused: boolean = false;
+
+  // --- External Callbacks ---
+  private workCallback!: WorkCallback<T>;
+  private beforeCallback: BeforeCallback<T> | undefined;
+  private afterCallback: AfterCallback | undefined;
+
+
+  // --- Public Getters ---
+
+  public getProcessingIndices(): number[] {
+    return Array.from(this.processingIndices);
   }
 
-
-  public getProcessing(): Array<number> {
-    return this.processing
+  public getProcessedIndices(): number[] {
+    return this.processedIndices;
   }
 
-  public getProcessed(): Array<number> {
-    return this.processed
+  public isRunning(): boolean {
+    return this.isProcessing;
   }
 
-  public getThreads(): Array<number> {
-    return this.threads
+  public isPausedState(): boolean {
+    return this.isPaused;
   }
 
-  public isProcessing(): boolean {
-    return this.IsProcessing
+  // --- Control Methods ---
+
+  public onPause = (callback?: (isPaused: boolean) => void) => {
+    this.isPaused = !this.isPaused;
+    if (callback) callback(this.isPaused);
   }
 
-  public isPause(): boolean {
-    return this.IsPause
+  public onStop = (callback?: (isProcessing: boolean, isPaused: boolean) => void) => {
+    this.isProcessing = false;
+    this.isPaused = false;
+    this.resetState();
+    if (callback) callback(this.isProcessing, this.isPaused);
   }
 
-  public onPushProcessed = (task: number) => {
-    this.processed.push(task)
+  // --- Core Logic ---
+
+  /**
+   * Resets the internal state trackers.
+   */
+  private resetState(): void {
+    this.taskIndex = 0;
+    this.processingIndices.clear();
+    this.processedIndices = [];
+    this.totalTask = [];
   }
 
-  public onResetThread = (index: number) => {
-    this.threads[index] = -1
-  }
+  /**
+   * Main task execution loop for a single worker thread.
+   * Continuously pulls tasks until all tasks are processed or the pool is stopped/paused.
+   * @param threadIndex The index of the running thread (0 to totalThread - 1).
+   */
+  private async worker(threadIndex: number): Promise<void> {
+    let taskAssigned = true;
 
-  public onPause = (callback?: Function) => {
-    this.IsPause = !this.IsPause
-    if (callback) callback(this.IsPause)
-  }
-
-  public onStop = (callback?: Function) => {
-    this.IsProcessing = false
-    this.IsPause = false
-    this.processing = []
-    this.processed = []
-    // ticks.value = []
-    // for (let index = 0; index < this.totalThread; index++) this.threads[index] = -1
-    if (callback) callback(this.IsProcessing, this.IsPause)
-  }
-
-  public onStart = async (thread: number, tasks: Array<any>, sleep: number, before?: Function, after?: Function) => {
-    this.totalThread = thread
-    this.totalTask = tasks
-    this.sleep = sleep
-    for (let index = 0; index < this.totalThread; index++) this.threads[index] = -1
-    return new Promise(async (resolve) => {
-      this.IsProcessing = true
-      if (before) before(this.IsProcessing, this.totalTask)
-      //Run while task done < total task
-      // console.log(this.processed.length, this.totalTask.length)
-      while (this.processed.length < this.totalTask.length) {
-        // console.log(this.totalTask)
-        try {
-          //loop all task to doing
-          for (let t = 0; t < this.totalThread; t++) {
-            await delay(this.sleep || 10)
-            // console.log(this.totalThread)
-            for (let i = 0; i < this.totalTask.length; i++) {
-              await delay(this.sleep || 10)
-              //skip if exist task
-              if (!this.IsProcessing) break
-              if (this.processing.indexOf(i) > -1) continue
-              if (this.threads[t] == -1) {
-                this.threads[t] = i
-                this.processing.push(i)
-                // Task working
-                // this.doWork()
-                // onTick(threads[t], i, 100).then((interval) => {
-                //   threads[t] = -1
-                //   tasks.value.done.push(i)
-                // })
-                if (after) await after(t, i, this.totalTask[i], this.IsProcessing, this.processing, this.processed)
-                //   .then(x => {
-                //   this.threads[t] = -1
-                //   this.processed.push(i)
-                // })
-              } else continue
-            }
-          }
-        } catch (e) {
-          // console.log(e)
-          continue
-        }
+    while (this.isProcessing && taskAssigned) {
+      // 1. Check Pause State
+      if (this.isPaused) {
+        await delay(500); // Wait for half a second if paused
+        continue;
       }
-      resolve(true)
-      this.IsProcessing = false
-      this.processing = []
-      this.processed = []
-    })
+
+      // 2. Safely get the next task index
+      let currentTaskIndex = -1;
+
+      // Assign a task atomically
+      if (this.taskIndex < this.totalTask.length) {
+        currentTaskIndex = this.taskIndex++;
+      } else {
+        // No more tasks to assign
+        taskAssigned = false;
+        break;
+      }
+
+      const taskData = this.totalTask[currentTaskIndex];
+
+      // 3. Mark as processing and run the work
+      this.processingIndices.add(currentTaskIndex);
+
+      try {
+        await this.workCallback(threadIndex, currentTaskIndex, taskData);
+
+        // 4. Mark as processed and clean up
+        this.processedIndices.push(currentTaskIndex);
+        this.processingIndices.delete(currentTaskIndex);
+
+        // 5. Run After Callback
+        if (this.afterCallback) {
+          await this.afterCallback(
+            this.isProcessing,
+            this.processedIndices.length,
+            this.totalTask.length
+          );
+        }
+      } catch (error) {
+        console.error(`Task ${currentTaskIndex} failed on thread ${threadIndex}:`, error);
+        // In case of error, still mark as processed (or handle error logic as needed)
+        this.processedIndices.push(currentTaskIndex);
+        this.processingIndices.delete(currentTaskIndex);
+      }
+
+      // 6. Cooperative delay to prevent blocking the event loop entirely
+      await delay(this.sleep);
+    }
   }
 
   /**
- * Callback được gọi trước khi bắt đầu xử lý các task
- * @param isProcessing trạng thái xử lý
- * @param totalTask danh sách task
- */
-  public before?(isProcessing: boolean, totalTask: Array<any>): void | Promise<void> { }
-
-  /**
- * Callback được gọi sau khi một task được phân cho thread xử lý
- * @param thread chỉ số thread
- * @param index chỉ số task
- * @param task dữ liệu task
- * @param isProcessing trạng thái xử lý
- * @param processing danh sách task đang xử lý
- * @param processed danh sách task đã xử lý
- */
-  public after?(
+   * Starts the task runner by initializing worker threads.
+   * @param thread The number of concurrent threads (workers).
+   * @param tasks The array of tasks to process.
+   * @param sleep The delay between worker assignments (ms).
+   * @param workCallback The function to execute for each task.
+   * @param before Optional callback before starting.
+   * @param after Optional callback after each task completes.
+   * @returns A Promise that resolves when all tasks are complete or the pool is stopped.
+   */
+  public onStart = async (
     thread: number,
-    index: number,
-    task: any,
-    isProcessing: boolean,
-    processing: Array<number>,
-    processed: Array<number>
-  ): void | Promise<void> { }
+    tasks: T[],
+    sleep: number,
+    workCallback: WorkCallback<T>,
+    before?: BeforeCallback<T>,
+    after?: AfterCallback
+  ): Promise<boolean> => {
+    // Prevent starting if already running
+    if (this.isProcessing) return false;
+
+    // Reset state from previous runs
+    this.resetState();
+
+    // 1. Configuration & Initialization
+    this.totalThread = Math.max(1, thread);
+    this.totalTask = tasks;
+    this.sleep = Math.max(5, sleep); // Minimum delay of 5ms
+    this.workCallback = workCallback;
+    this.beforeCallback = before;
+    this.afterCallback = after;
+    this.isProcessing = true;
+
+    if (this.beforeCallback) {
+      await this.beforeCallback(this.isProcessing, this.totalTask);
+    }
+
+    // 2. Create and run all worker Promises concurrently
+    const workers: Promise<void>[] = [];
+    for (let i = 0; i < this.totalThread; i++) {
+      workers.push(this.worker(i));
+    }
+
+    // 3. Wait for all workers to finish their assigned tasks
+    await Promise.all(workers);
+
+    // 4. Final state cleanup
+    this.isProcessing = false;
+    this.isPaused = false; // Ensure pause state is clear on finish
+
+    // Return true if all tasks finished, false if stopped prematurely (though Promise.all handles this complexly)
+    return this.processedIndices.length === this.totalTask.length;
+  }
 }
 export { };

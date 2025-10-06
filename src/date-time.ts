@@ -1,59 +1,154 @@
-import moment from 'moment'
+import moment from 'moment';
 
-export const stringTimeToSecond = (timeHMS: string) => {
+/**
+ * Converts a "HH:mm:ss" time string into the total number of seconds.
+ * Leverages Moment.js for robust parsing by treating the time as duration from midnight.
+ * @param timeHMS The time string (e.g., "01:30:15" for 1 hour, 30 minutes, 15 seconds).
+ * @returns The total duration in seconds, or 0 if parsing fails.
+ */
+export const stringTimeToSecond = (timeHMS: string): number => {
   try {
-    const arr = timeHMS.split(':')
-    return (+arr[0]) * 60 * 60 + (+arr[1]) * 60 + (+arr[2])
+    // Treat the time string as a duration starting from midnight (00:00:00)
+    const duration = moment.duration(timeHMS);
+
+    // Check if the moment duration is valid
+    if (duration.isValid()) {
+      return duration.asSeconds();
+    }
+    return 0;
   } catch (e) {
-    return 0
+    console.error("Error converting string time to seconds:", e);
+    return 0;
   }
-}
-export const ArrayTimeToSecond = (timeArr: Array<number>) => {
+};
+
+/**
+ * Converts a time array [H, M, S] into the total number of seconds.
+ * @param timeArr An array of numbers representing [hours, minutes, seconds].
+ * @returns The total duration in seconds, or 0 if the array is invalid.
+ */
+export const ArrayTimeToSecond = (timeArr: number[]): number => {
   try {
-    return (timeArr[0]) * 60 * 60 + (timeArr[1]) * 60 + (timeArr[2])
-  } catch (e) {
-    return 0
-  }
-}
+    if (!Array.isArray(timeArr) || timeArr.length < 3) return 0;
 
-export const secondToTime = (seconds: number, format = 'HH:mm:ss') => {
+    // Use Moment.js duration creation for clarity and validity checks (optional, but robust)
+    const duration = moment.duration({
+      hours: timeArr[0] || 0,
+      minutes: timeArr[1] || 0,
+      seconds: timeArr[2] || 0
+    });
+
+    if (duration.isValid()) {
+      return duration.asSeconds();
+    }
+    return 0;
+
+  } catch (e) {
+    console.error("Error converting array time to seconds:", e);
+    return 0;
+  }
+};
+
+/**
+ * Converts a total number of seconds into a formatted time string (e.g., "HH:mm:ss").
+ * @param seconds The total number of seconds.
+ * @param format The Moment.js format string. Defaults to 'HH:mm:ss'.
+ * @returns The formatted time string, or an empty string on error.
+ */
+export const secondToTime = (seconds: number, format = 'HH:mm:ss'): string => {
   try {
-    return moment.utc(seconds * 1000).format(format)
+    // moment.utc() treats the number of milliseconds as a duration since the epoch start (1970).
+    // The format uses UTC to avoid timezone issues.
+    return moment.utc(seconds * 1000).format(format);
   } catch (e) {
-    return ''
+    console.error("Error converting seconds to time string:", e);
+    return '';
   }
-}
+};
 
-export const timeToArray = (date: Date, format = 'HH:mm:ss', split = ':') => {
+/**
+ * Formats a Date object and splits it into an array of strings.
+ * @param date The JavaScript Date object.
+ * @param format The Moment.js format string. Defaults to 'HH:mm:ss'.
+ * @param split The separator character. Defaults to ':'.
+ * @returns An array of string components (e.g., ['15', '30', '00']), or an empty array on error.
+ */
+export const timeToArray = (date: Date, format = 'HH:mm:ss', split = ':'): string[] => {
   try {
-    return moment(date).format(format).split(split)
-  } catch (e) {
-    return []
-  }
-}
+    // Note: moment(date) should generally work, but we ensure it's a valid Moment object
+    const m = moment(date);
+    if (!m.isValid()) return [];
 
-export const timeToArrayNumber = (date: Date, format = 'HH:mm:ss', split = ':') => {
+    return m.format(format).split(split);
+  } catch (e) {
+    console.error("Error converting time to array of strings:", e);
+    return [];
+  }
+};
+
+/**
+ * Formats a Date object and splits it into an array of numbers.
+ * @param date The JavaScript Date object.
+ * @param format The Moment.js format string. Defaults to 'HH:mm:ss'.
+ * @param split The separator character. Defaults to ':'.
+ * @returns An array of number components (e.g., [15, 30, 0]), or an empty array on error.
+ */
+export const timeToArrayNumber = (date: Date, format = 'HH:mm:ss', split = ':'): number[] => {
   try {
-    return timeToArray(date, format, split).map(Number)
+    // Reuse timeToArray and map the results to numbers
+    return timeToArray(date, format, split).map(Number);
   } catch (e) {
-    return []
+    console.error("Error converting time to array of numbers:", e);
+    return [];
   }
-}
+};
 
-export const toTimestamp = (date: string) => {
-  const datum = Date.parse(date)
-  return datum / 1000
-}
+/**
+ * Converts a date string into a Unix timestamp (seconds since epoch).
+ * @param date The date string to parse (e.g., '2025-10-06').
+ * @returns The Unix timestamp in seconds, or NaN if parsing fails.
+ */
+export const toTimestamp = (date: string): number => {
+  // Date.parse returns milliseconds, so we divide by 1000
+  const datum = Date.parse(date);
+  if (isNaN(datum)) return NaN;
+  return Math.floor(datum / 1000);
+};
 
-export const randomDate = function (start: Date, end: Date) {
-  return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()))
-}
+/**
+ * Generates a random Date object between a start date and an end date.
+ * @param start The starting Date object.
+ * @param end The ending Date object.
+ * @returns A randomly generated Date object.
+ */
+export const randomDate = (start: Date, end: Date): Date => {
+  // Note: Your original logic is mathematically sound for generating a random date
+  return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+};
 
-export const toDate = function (timestamp: string, format?: string) {
-  const ts = parseInt(timestamp)
-  if (format)
-    return moment(ts).format(format)
-  else
-    return moment(ts).toDate()
-}
+/**
+ * Converts a Unix timestamp (seconds) into a formatted string or a Date object.
+ * @param timestamp The Unix timestamp in seconds.
+ * @param format The Moment.js format string (optional).
+ * @returns A formatted string or a Date object.
+ */
+export const toDate = (timestamp: string | number, format?: string): string | Date => {
+  const ts = typeof timestamp === 'string' ? parseInt(timestamp, 10) : timestamp;
+
+  // Moment accepts timestamps in milliseconds, so we multiply by 1000
+  const m = moment(ts * 1000);
+
+  if (!m.isValid()) {
+    console.warn(`Invalid timestamp provided: ${timestamp}`);
+    return new Date(NaN); // Return an invalid Date object
+  }
+
+  if (format) {
+    return m.format(format);
+  } else {
+    // moment().toDate() returns a standard JavaScript Date object
+    return m.toDate();
+  }
+};
+
 export { moment };
