@@ -63,7 +63,7 @@ async function buildAll() {
     await buildFile(lib);
   }
 
-  // 🧱 Tạo index.js & index.d.ts tự động
+  // 🧱 Bỏ qua việc tạo index.js & index.d.ts tự động
   generateIndexFile(libs);
 
   // 📝 Cập nhật package.json
@@ -82,34 +82,25 @@ async function buildAll() {
   console.log("🎉 Build hoàn tất!");
 }
 
-// 🧱 Tạo index.js và index.d.ts
+// 🧱 Tạo index.js và index.d.ts (Bây giờ chỉ là một hàm ghi log)
 function generateIndexFile(modules) {
-  const jsContent = modules
-    .map((name) => `export * as ${camelCase(name)} from "./${name}.js";`)
-    .join("\n");
-
-  // Index.d.ts sẽ được tạo đầy đủ bởi TSC, đây là template
-  const dtsContent = modules
-    .map((name) => `export * from "./${name}";`)
-    .join("\n");
-
-  fs.writeFileSync("./dist/index.js", jsContent);
-  fs.writeFileSync("./dist/index.d.ts", dtsContent);
-  console.log("🧩 Generated index.js & index.d.ts (template)");
+  // ❌ Không tạo index.js và index.d.ts nữa
+  console.log("👉 Bỏ qua việc tạo index.js & index.d.ts");
 }
 
-// 📝 Cập nhật package.json (cần thiết nếu script bị đổi)
+// 📝 Cập nhật package.json (Xóa main/module/types)
 function updatePackageJson() {
   const pkgPath = "./package.json";
   const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
 
   pkg.files = ["dist", "README.md"];
-  pkg.main = "dist/index.js";
-  pkg.module = "dist/index.js";
-  pkg.types = "dist/index.d.ts";
+  // ❌ Xóa các trường này
+  delete pkg.main;
+  delete pkg.module;
+  delete pkg.types;
 
   fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
-  console.log("📦 Updated package.json → main/module/types");
+  console.log("📦 Updated package.json (Removed main/module/types)");
 }
 
 // 🐪 camelCase helper
