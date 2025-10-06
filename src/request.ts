@@ -132,4 +132,4 @@ export const getUserAgent = (request: Request): string => {
   return 'undefined';
 };
 
-export { };
+export { requestIp };
