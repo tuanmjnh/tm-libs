@@ -75,8 +75,8 @@ async function buildAll() {
   console.log("✅ Declarations generated successfully.");
 
   // 📝 FIX 3: Copy package.json vào dist cho lệnh publish:lib
-  fs.copyFileSync("./package.json", "./dist/package.json");
-  console.log("📋 Copied package.json to dist/");
+  // fs.copyFileSync("./package.json", "./dist/package.json");
+  // console.log("📋 Copied package.json to dist/");
   // (Bạn có thể thêm copy README.md tại đây nếu cần)
 
   console.log("🎉 Build hoàn tất!");
