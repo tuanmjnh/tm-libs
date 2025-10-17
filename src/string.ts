@@ -1,7 +1,8 @@
 /**
-* Standardize and remove Vietnamese accents (using Unicode Normalization)
-*/
-export function normalize(str: string = ""): string {
+ * 🔤 Normalize and remove Vietnamese accents using Unicode normalization
+ * → Giữ nguyên định dạng chữ, chỉ loại bỏ dấu tiếng Việt
+ */
+export function viNormalize(str: string = ""): string {
   return str
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -10,9 +11,9 @@ export function normalize(str: string = ""): string {
 }
 
 /**
-* Manually remove Vietnamese accents (suitable when you don't want to use normalize)
-*/
-export function removeAccents(str: string = ""): string {
+ * 🧭 Remove Vietnamese accents manually (fallback if normalize() unavailable)
+ */
+export function viRemoveAccents(str: string = ""): string {
   const accentsMap = [
     "aàảãáạăằẳẵắặâầẩẫấậ",
     "AÀẢÃÁẠĂẰẲẴẮẶÂẦẨẪẤẬ",
@@ -37,81 +38,119 @@ export function removeAccents(str: string = ""): string {
 }
 
 /**
-* Convert accented string -> ASCII (underscore, remove special characters)
-*/
-export function convertToAscii(arg: string = ""): string {
-  return arg
+ * 🔠 Convert accented string → lowercase ASCII (snake_case, remove specials)
+ * Example: "Điện Thoại iPhone 15 Pro!" → "dien_thoai_iphone_15_pro"
+ */
+export function viToAscii(str: string = ""): string {
+  return str
     .toLowerCase()
-    .replace(/\s+/g, "_")
-    .replace(/[áàãạảâầấậẫẩăằắẵặẳ]/g, "a")
-    .replace(/[èéẹẽẻêếềễểệ]/g, "e")
-    .replace(/[ìíịỉĩ]/g, "i") // ⚙ sửa lỗi gốc bạn ghi nhầm 'e'
-    .replace(/[òóõọỏôỗộồốổơỡờớợỡở]/g, "o")
-    .replace(/[ùúụũủưừứựữử]/g, "u")
-    .replace(/[ýỳỹỷỵ]/g, "y")
-    .replace(/[đ]/g, "d")
-    .replace(/[~`!@#$%^&*()\[\]{}\\|:'"<>.,?/”“‘’„‰‾–—]/g, "");
-}
-
-/**
-* Converts a string with accents and special characters into a friendly slug (SEO-friendly)
-*
-* @example
-* toSlug("I Love Vietnam!") → "toi-yeu-viet-nam"
-*/
-export function toSlug(text: string): string {
-  if (!text) return ''
-  return text
-    .toLowerCase()
-    .normalize("NFD")                  // Separate Vietnamese accents
-    .replace(/[\u0300-\u036f]/g, "")   // Remove the combination mark
-    .replace(/đ/g, "d")                // Move →
-    .replace(/Đ/g, "d")
-    .replace(/[^a-z0-9\s-]/g, "")      // Delete special characters
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9\s_]/g, "")
     .trim()
-    .replace(/\s+/g, "-")              // Change spaces to "-"
-    .replace(/-+/g, "-")               // Remove duplicate tiles
-    .replace(/^-|-$/g, "");            // Cut the tiles at the beginning/end
+    .replace(/\s+/g, "_");
 }
 
 /**
-* Remove special characters (keep only letters, numbers and spaces)
-*/
-export function removeChars(arg: string = ""): string {
-  return arg.replace(/[~`!@#$%^&*()\[\]{}\\|:'",<>./?]/g, "");
+ * 🌐 Convert to SEO-friendly slug
+ * Example: "I Love Việt Nam!" → "i-love-viet-nam"
+ */
+export function viToSlug(str: string = ""): string {
+  return str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 /**
-* Convert HTML string to DOM Element (using document.createElement)
-*/
-export function toHtml(arg: string): HTMLElement | null {
-  if (!arg) return null;
+ * 🚫 Remove all special characters (keep letters, numbers, and spaces)
+ */
+export function removeSpecialChars(str: string = ""): string {
+  return str.replace(/[~`!@#$%^&*()\[\]{}\\|:'",<>./?]/g, "");
+}
+
+/**
+ * 🚫 Remove invalid folder characters (Windows-safe filenames)
+ */
+export function removeInvalidPathChars(str: string = ""): string {
+  // < > : " / \ | ? *
+  return str.replace(/[<>:"/\\|?*]/g, "");
+}
+
+/**
+ * 🧱 Convert an HTML string to DOM Element
+ */
+export function htmlToElement(html: string): HTMLElement | null {
+  if (!html) return null;
   const el = document.createElement("div");
-  el.innerHTML = arg.trim();
-  return el;
+  el.innerHTML = html.trim();
+  return el.firstElementChild as HTMLElement;
 }
 
 /**
-* Trim specific characters from the end of a string (e.g. trimChars("abc,", ",") → "abc")
-*/
-export function trimChars(arg: string = "", char: string): string {
-  const regx = new RegExp(char + "$", "g");
-  return arg.replace(regx, "");
+ * ✂️ Trim specific characters from the end of a string
+ * Example: trimEndChars("abc,", ",") → "abc"
+ */
+export function trimEndChars(str: string = "", char: string): string {
+  const regx = new RegExp(`${char}+$`);
+  return str.replace(regx, "");
 }
 
 /**
-* Split string in square brackets [...]:
-* - include = true: return both "[a]" (including brackets)
-* - include = false: return only "a"
-*/
-export function splitBrackets(val: string = "", include = false): string[] {
+ * 🔍 Extract content within square brackets
+ * @param include - whether to include the brackets themselves
+ * Example: splitBrackets("abc [123] def", false) → ["123"]
+ */
+export function extractSquareBrackets(val: string = "", include = false): string[] {
   try {
     const pattern = include ? /\[[^\]]*\]/g : /(?<=\[)[^\]\[\r\n]*(?=\])/g;
-    const result = val.trim().match(pattern);
-    return result ?? [];
+    return val.trim().match(pattern) ?? [];
   } catch {
     return [];
   }
+}
+
+/**
+ * 🧩 Capitalize the first character
+ */
+export function capitalizeFirst(str: string = ""): string {
+  return str ? str.charAt(0).toUpperCase() + str.slice(1) : str;
+}
+
+/**
+ * 🔡 Lowercase the first character
+ */
+export function decapitalizeFirst(str: string = ""): string {
+  return str ? str.charAt(0).toLowerCase() + str.slice(1) : str;
+}
+
+/**
+ * 🧠 Capitalize each word (Title Case)
+ */
+export function capitalizeWords(str: string = ""): string {
+  return str
+    .trim()
+    .split(/\s+/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+/**
+ * 🔠 Lowercase each word (first letter only lowercase)
+ */
+export function lowercaseWords(str: string = ""): string {
+  return str
+    .trim()
+    .split(/\s+/)
+    .map(word => word.charAt(0).toLowerCase() + word.slice(1))
+    .join(" ");
 }
 
 export { };

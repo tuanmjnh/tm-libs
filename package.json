@@ -1,6 +1,6 @@
 {
   "name": "tm-libs",
-  "version": "1.3.0",
+  "version": "1.3.2",
   "description": "tm-libs",
   "type": "module",
   "main": "dist/index.js",

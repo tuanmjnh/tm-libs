@@ -256,4 +256,20 @@ export const splitRandomItems = <T>(
   return result.filter((g) => g.length >= skipSmall);
 };
 
+// store items helper
+export const addItems = <T>(params: T | T[], list: T[]) =>
+  list.push(...(Array.isArray(params) ? params : [params]))
+
+export const updateItems = <T extends { _id: string }>(params: T | T[], list: T[]) =>
+  (Array.isArray(params) ? params : [params]).forEach(u => {
+    const i = list.findIndex(x => (x as any)._id === u._id)
+    if (i > -1) list.splice(i, 1, u)
+  })
+
+export const removeItems = <T extends { _id: string }>(params: string | string[], list: T[]) =>
+  (Array.isArray(params) ? params : [params]).forEach(id => {
+    const i = list.findIndex(x => (x as any)._id === id)
+    if (i > -1) list.splice(i, 1)
+  })
+
 export { };
