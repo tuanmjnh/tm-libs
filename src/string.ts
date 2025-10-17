@@ -120,21 +120,21 @@ export function extractSquareBrackets(val: string = "", include = false): string
 /**
  * 🧩 Capitalize the first character
  */
-export function capitalizeFirst(str: string = ""): string {
+export function toUpperCaseFirst(str: string = ""): string {
   return str ? str.charAt(0).toUpperCase() + str.slice(1) : str;
 }
 
 /**
  * 🔡 Lowercase the first character
  */
-export function decapitalizeFirst(str: string = ""): string {
+export function toLowerCaseFirst(str: string = ""): string {
   return str ? str.charAt(0).toLowerCase() + str.slice(1) : str;
 }
 
 /**
  * 🧠 Capitalize each word (Title Case)
  */
-export function capitalizeWords(str: string = ""): string {
+export function toUpperCaseWords(str: string = ""): string {
   return str
     .trim()
     .split(/\s+/)
@@ -145,7 +145,7 @@ export function capitalizeWords(str: string = ""): string {
 /**
  * 🔠 Lowercase each word (first letter only lowercase)
  */
-export function lowercaseWords(str: string = ""): string {
+export function toLowerCaseWords(str: string = ""): string {
   return str
     .trim()
     .split(/\s+/)
