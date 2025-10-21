@@ -151,4 +151,4 @@ export const toDate = (timestamp: string | number, format?: string): string | Da
   }
 };
 
-export { moment };
+export { };

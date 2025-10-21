@@ -1,38 +1,38 @@
-import crypto from "crypto";
-import bcrypt from 'bcrypt';
+import CryptoJS from "crypto-js";
+import bcrypt from "bcryptjs";
 
 export const SECRET = "48955e33-5871-3982-3c1e-e127e7714958";
 
-// MD5 hash
 export const MD5Hash = (val: string, secret?: string) =>
-  crypto.createHash("md5").update(val + (secret || "")).digest("hex");
+  CryptoJS.MD5(val + (secret || "")).toString();
 
-// SHA256 hash
 export const SHA256 = (val: string) =>
-  crypto.createHash("sha256").update(val).digest("hex");
+  CryptoJS.SHA256(val).toString();
 
-// Base64 encode/decode
 export const Base64Encode = (str: string) =>
-  Buffer.from(str, "utf8").toString("base64");
+  btoa(unescape(encodeURIComponent(str)));
 
 export const Base64Decode = (str: string) =>
-  Buffer.from(str, "base64").toString("utf8");
+  decodeURIComponent(escape(atob(str)));
 
-// New GUID (dạng XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX hoặc không dấu "-")
 export const NewGuid = (n?: boolean) => {
-  const s4 = () => Math.floor((1 + Math.random()) * 0x10000).toString(16).slice(-4);
+  const s4 = () =>
+    Math.floor((1 + Math.random()) * 0x10000)
+      .toString(16)
+      .slice(-4);
   return n
     ? `${s4()}${s4()}${s4()}${s4()}${s4()}${s4()}${s4()}${s4()}`
     : `${s4()}${s4()}-${s4()}-${s4()}-${s4()}-${s4()}${s4()}${s4()}`;
 };
 
-// New random token (64 bytes → 128 ký tự hex)
-export const NewToken = () => crypto.randomBytes(64).toString("hex");
+export const NewToken = () => {
+  const array = new Uint8Array(64);
+  crypto.getRandomValues(array);
+  return Array.from(array, b => b.toString(16).padStart(2, "0")).join("");
+};
 
-export const createPassword = async (password: string, salt?: string, lengthSalt?: number) => {
-  salt = salt || await bcrypt.genSalt(lengthSalt || 10)
-  const hashed = await bcrypt.hash(password, salt)
-  return { password: hashed, salt }
-}
-
-export { crypto, bcrypt };
+export const createPassword = async (password: string, salt?: string, lengthSalt = 10) => {
+  salt = salt || bcrypt.genSaltSync(lengthSalt);
+  const hashed = await bcrypt.hash(password, salt);
+  return { password: hashed, salt };
+};
