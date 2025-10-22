@@ -1,57 +1,64 @@
 /**
- * Helper: Finds a deeply nested value within an object using a dot-separated path.
- * This is necessary to support keys like 'details.id'.
- * @param obj The object to query.
- * @param path The dot-separated key path (e.g., "user.name").
+ * Helper: Get value from object by path (supports "a.b.c")
  */
 function getNestedValue<T extends Record<string, any>>(obj: T, path: keyof T | string): any {
-  // If the path is a top-level key, access it directly.
   if (typeof path !== 'string' || !path.includes('.')) {
     return obj[path as keyof T];
   }
-
-  // If the path is nested (e.g., 'details.id'), traverse the object.
-  const keys = path.split('.');
-  return keys.reduce((acc, key) => {
-    // Check if acc is a valid object and the key exists
-    return acc && acc[key] !== undefined ? acc[key] : undefined;
-  }, obj);
+  return path.split('.').reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);
 }
 
+/**
+ * Helper: Assign value to object by path (supports "a.b.c")
+ */
+function setNestedValue<T extends Record<string, any>>(
+  obj: T,
+  path: keyof T | string,
+  value: any
+): void {
+  if (typeof path !== 'string' || !path.includes('.')) {
+    (obj as Record<string, any>)[path as string] = value;
+    return;
+  }
 
+  const keys = path.split('.');
+  const lastKey = keys.pop()!;
+  // cast acc to Record<string, any> to avoid generic write errors
+  const target = keys.reduce<Record<string, any>>((acc, key) => {
+    if (!acc[key] || typeof acc[key] !== 'object') acc[key] = {};
+    return acc[key];
+  }, obj as Record<string, any>);
+
+  target[lastKey] = value;
+}
+
+/**
+ * Convert flat array to tree, support nested key
+ */
 export function arrayToTree<T extends Record<string, any>>(
   arr: T[],
-  // The id and pid parameters can now be strings representing nested paths (e.g. "details.uid")
   id: keyof T | string = "id",
   pid: keyof T | string = "pid"
 ): (T & { children?: (T & { children?: any[] })[] })[] {
   if (!Array.isArray(arr)) return [];
 
-  const res: (T & { children?: (T & { children?: any[] })[] })[] = [];
-  // The key in the map is id (can be string, number,...)
-  const map = new Map<any, T & { children?: (T & { children?: any[] })[] }>();
+  const res: (T & { children?: any[] })[] = [];
+  const map = new Map<any, T & { children?: any[] }>();
 
-  // 1. Map all nodes by ID
+  // Step 1: clone each node into the map (avoid duplicate references)
   arr.forEach((item) => {
-    // Sử dụng helper để lấy giá trị ID, hỗ trợ nested key
     const itemId = getNestedValue(item, id);
-    map.set(itemId, item);
+    // Dùng spread clone object để tách biệt khỏi object gốc
+    map.set(itemId, { ...item, children: [] });
   });
 
-  // 2. Building the tree structure
-  arr.forEach((item) => {
-    // Use helper to get Parent ID value, supports nested key
-    const parentKey = getNestedValue(item, pid);
-
-    // Check the validity of parentKey and make sure it exists in the map
-    if (parentKey != null && map.has(parentKey)) {
-      const parent = map.get(parentKey)!;
-      // Initialize children if not present and push item into them
-      parent.children = parent.children || [];
-      parent.children.push(item);
+  // Step 2: browse map to assign parent-child relationship
+  map.forEach((node) => {
+    const parentId = getNestedValue(node, pid);
+    if (parentId && map.has(parentId)) {
+      map.get(parentId)!.children!.push(node);
     } else {
-      // If there is no parent (or parent is not found), this is the root node
-      res.push(item);
+      res.push(node);
     }
   });
 
@@ -59,12 +66,8 @@ export function arrayToTree<T extends Record<string, any>>(
 }
 
 /**
- * Flattens a tree structure back into a flat array, retaining the parent-child relationship via 'pid'.
- * * @param tree The array of root nodes (the tree structure).
- * @param id The property name (or nested path) used for the current node's unique ID. Defaults to "id".
- * @param pid The property name (or nested path) used for the parent's ID. Defaults to "pid".
- * @param childrenKey The property name where child nodes are stored. Defaults to "children".
- * @returns A flat array of objects (T), where each object has a defined 'pid'.
+* Convert tree to array,
+* support nested key path and keep parent-child relationship.
  */
 export function treeToArray<T extends Record<string, any>>(
   tree: (T & { children?: any[] })[],
@@ -72,52 +75,83 @@ export function treeToArray<T extends Record<string, any>>(
   pid: keyof T | string = "pid",
   childrenKey: string = "children"
 ): T[] {
-  if (!Array.isArray(tree)) return [];
-
   const result: T[] = [];
 
-  // Helper function to get nested value (reused from arrayToTree logic)
-  const getNestedValue = (obj: T, path: keyof T | string): any => {
-    if (typeof path !== 'string' || !path.includes('.')) {
-      return obj[path as keyof T];
-    }
-    const keys = path.split('.');
-    return keys.reduce((acc, key) => acc && acc[key] !== undefined ? acc[key] : undefined, obj);
-  };
-
   /**
-   * Recursive function to traverse the tree and flatten the nodes.
-   * @param nodes The current array of nodes to process.
-   * @param parentId The ID of the parent node.
+   * Recursively flatten nodes
    */
   const traverse = (nodes: (T & { children?: any[] })[], parentId: any | null) => {
-    nodes.forEach((node) => {
-      // 1. Assign pid to current node
-      // Use direct update logic, don't use setNested to keep it simple
-      // of the flatten function (it should only affect the pid/id properties).
-      if (pid && parentId !== null) {
-        // Gán trực tiếp giá trị parentId vào thuộc tính pid của node
-        node[pid as keyof T] = parentId;
+    for (const node of nodes) {
+      // Clone node to not change original data
+      const clone = JSON.parse(JSON.stringify(node));
+
+      // Assign pid to clone (if there is a parent)
+      if (parentId !== null) {
+        setNestedValue(clone, pid, parentId);
       }
 
-      // 2. Add node to result array
-      // Clone node to remove children array before adding to result
-      const { [childrenKey]: children, ...rest } = node;
-      result.push(rest as T);
+      // Clear the children field before adding it to the result.
+      delete clone[childrenKey];
+      result.push(clone);
 
-      // 3. Process child nodes recursively
-      if (children && children.length > 0) {
-        // Get the ID of the current node to make the Parent ID for the child node
+      // Recursively handle children
+      const children = node[childrenKey];
+      if (Array.isArray(children) && children.length > 0) {
         const currentId = getNestedValue(node, id);
         traverse(children, currentId);
       }
-    });
+    }
   };
 
-  // Start iterating from the root array (root nodes) with Parent ID being null
   traverse(tree, null);
-
   return result;
+}
+
+/**
+* Create graph structure from flat array.
+* Allow 1 node to have many different parents.
+ */
+export function arrayToGraph<T extends Record<string, any>>(
+  arr: T[],
+  id: keyof T | string = "id",
+  pid: keyof T | string = "pid"
+): (T & { children?: any[]; parents?: any[] })[] {
+  if (!Array.isArray(arr)) return [];
+
+  // Map to quickly look up node by id
+  const map = new Map<any, T & { children?: any[]; parents?: any[] }>();
+
+  // Step 1: clone each node and put it into the map
+  arr.forEach((item) => {
+    const itemId = getNestedValue(item, id);
+    if (itemId === undefined) return;
+    const clone = { ...item, children: [], parents: [] };
+    map.set(itemId, clone);
+  });
+
+  // Step 2: Create many-to-many relationship
+  arr.forEach((item) => {
+    const itemId = getNestedValue(item, id);
+    let parentKeys = getNestedValue(item, pid);
+
+    if (parentKeys == null) return;
+    if (!Array.isArray(parentKeys)) parentKeys = [parentKeys];
+
+    parentKeys.forEach((parentId: any) => {
+      const parent = map.get(parentId);
+      const node = map.get(itemId);
+      if (!parent || !node) return;
+
+      // push two-way relationship
+      parent.children!.push(node);
+      node.parents!.push(parent);
+    });
+  });
+
+  // Step 3: find root nodes (no parent)
+  const roots = Array.from(map.values()).filter((node) => !node.parents || node.parents.length === 0);
+
+  return roots;
 }
 
 /**
