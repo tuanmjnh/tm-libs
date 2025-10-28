@@ -1,6 +1,6 @@
 {
   "name": "tm-libs",
-  "version": "1.3.8",
+  "version": "1.4.3",
   "description": "tm-libs",
   "type": "module",
   "exports": {
@@ -27,6 +27,7 @@
     "build:tsc": "tsc && tsc-alias && npm run copy",
     "test": "ts-node --esm test/test.ts",
     "test:npx": "npx ts-node test/test.ts",
+    "test:tsx": "npx tsx test/test-utils.ts",
     "remove": "@powershell rm -r -fo dist",
     "copy": "@powershell copy package.json ./dist && @powershell copy README.md ./dist",
     "publish:lib": "npm run build && cd dist && npm publish",
@@ -63,8 +64,7 @@
     "ts-node": "^10.9.2",
     "tsc-alias": "^1.8.16",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.9.3",
-    "vite": "^7.1.9"
+    "typescript": "^5.9.3"
   },
   "overrides": {
     "tmp": "^0.2.4"

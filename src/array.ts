@@ -291,19 +291,119 @@ export const splitRandomItems = <T>(
 };
 
 // store items helper
-export const addItems = <T>(params: T | T[], list: T[]) =>
-  list.push(...(Array.isArray(params) ? params : [params]))
+export const addItems = <T>(list: T[], itemsToAdd: T | T[]): T[] => {
+  const normalizedItems = Array.isArray(itemsToAdd) ? itemsToAdd : [itemsToAdd]
+  list.push(...normalizedItems)
+  return list
+}
 
-export const updateItems = <T extends { _id: string }>(params: T | T[], list: T[]) =>
-  (Array.isArray(params) ? params : [params]).forEach(u => {
-    const i = list.findIndex(x => (x as any)._id === u._id)
-    if (i > -1) list.splice(i, 1, u)
-  })
+export const updateItems = <
+  T extends Record<string | number, any>
+>(
+  list: T[],
+  itemsToUpdate: T | T[],
+  key: string | number
+): T[] => {
+  const normalizedItems = Array.isArray(itemsToUpdate) ? itemsToUpdate : [itemsToUpdate]
+  for (const u of normalizedItems) {
+    if (u && key in u) {
+      const i = list.findIndex(x => x[key] === u[key])
+      if (i > -1) list.splice(i, 1, u)
+    }
+  }
+  return list
+}
+export const removeItems = <
+  T extends Record<string | number, any>
+>(
+  list: T[],
+  itemsToRemove: string | number | (string | number)[] | T | T[],
+  key: string | number
+): T[] => {
+  const normalizedItems = Array.isArray(itemsToRemove) ? itemsToRemove : [itemsToRemove]
 
-export const removeItems = <T extends { _id: string }>(params: string | string[], list: T[]) =>
-  (Array.isArray(params) ? params : [params]).forEach(id => {
-    const i = list.findIndex(x => (x as any)._id === id)
-    if (i > -1) list.splice(i, 1)
-  })
+  for (const u of normalizedItems) {
+    const k =
+      typeof u === 'object' && u !== null && !Array.isArray(u)
+        ? u[key]
+        : u
 
+    if (k !== undefined && k !== null) {
+      const i = list.findIndex(x => x[key] === k)
+      if (i > -1) list.splice(i, 1)
+    }
+  }
+  return list
+}
+
+type MergeMode = 'UPSERT' | 'UPDATE_ONLY' | 'PUSH_ONLY' | 'OVERWRITE';
+export const mergeArraysByMode = <T extends { [key: string]: any; }>(targetArray: T[], sourceArray: T[], idKey: keyof T, mode: MergeMode = 'UPSERT'): T[] => {
+
+  // Sử dụng Map để theo dõi các mục hiện có trong targetArray (để tìm kiếm nhanh)
+  const resultMap = new Map<any, T>();
+
+  // 1. Khởi tạo Map với dữ liệu từ targetArray
+  targetArray.forEach(item => {
+    const idValue = item[idKey];
+    if (idValue !== undefined) {
+      resultMap.set(idValue, item);
+    }
+  });
+
+  // 2. Xử lý sourceArray dựa trên mode
+  sourceArray.forEach(sourceItem => {
+    const idValue = sourceItem[idKey];
+
+    // --- Xử lý các mục có ID (ID-based items) ---
+    if (idValue !== undefined) {
+      const isExisting = resultMap.has(idValue);
+
+      if (isExisting) {
+        // TÌM THẤY MỤC ĐÃ TỒN TẠI (ID MATCH)
+        if (mode === 'UPSERT' || mode === 'UPDATE_ONLY' || mode === 'OVERWRITE') {
+          // CẬP NHẬT: Ghi đè dữ liệu
+          const existingItem = resultMap.get(idValue)!;
+          resultMap.set(idValue, { ...existingItem, ...sourceItem });
+          // OVERWRITE: Ghi đè hoàn toàn (chỉ dùng sourceItem)
+          // resultMap.set(idValue, sourceItem); // Logic OVERWRITE nếu muốn thay thế hoàn toàn
+        }
+        // Nếu mode là 'PUSH_ONLY', chúng ta bỏ qua việc cập nhật mục đã tồn tại.
+
+      } else {
+        // KHÔNG TÌM THẤY MỤC (ID NEW)
+        if (mode === 'UPSERT' || mode === 'PUSH_ONLY' || mode === 'OVERWRITE') {
+          // THÊM MỚI (PUSH): Thêm mục mới vào Map
+          resultMap.set(idValue, sourceItem);
+        }
+        // Nếu mode là 'UPDATE_ONLY', chúng ta bỏ qua việc thêm mới.
+      }
+
+    } else {
+      // --- Xử lý các mục KHÔNG CÓ ID (Non-ID items) ---
+
+      // Theo yêu cầu: Kể cả không tìm thấy khóa (missing idKey), vẫn thực hiện merge.
+      // Nếu mode là PUSH_ONLY hoặc UPSERT, ta sẽ thêm mục này vào mảng kết quả cuối cùng.
+      if (mode === 'PUSH_ONLY' || mode === 'UPSERT' || mode === 'OVERWRITE') {
+        // Chúng ta không thể thêm vào Map vì thiếu ID, nên chúng ta sẽ xử lý việc push sau.
+        // Đối với các mục thiếu ID, chúng ta cần đảm bảo chúng không bị trùng lặp.
+        // Ở đây, ta sẽ tạm thời bỏ qua nó trong vòng lặp Map và thêm vào cuối mảng.
+      }
+      // Nếu mode là UPDATE_ONLY, các mục thiếu ID sẽ bị bỏ qua.
+    }
+  });
+
+  // 3. Kết quả cuối cùng
+  let finalArray: T[] = Array.from(resultMap.values());
+
+  // 4. Thêm các mục thiếu ID nếu mode cho phép PUSH
+  if (mode === 'PUSH_ONLY' || mode === 'UPSERT' || mode === 'OVERWRITE') {
+    sourceArray.forEach(sourceItem => {
+      if (sourceItem[idKey] === undefined) {
+        finalArray.push(sourceItem);
+      }
+    });
+  }
+
+  return finalArray;
+}
 export { };
