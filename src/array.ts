@@ -1,3 +1,4 @@
+import { viNormalize } from './string.js'
 /**
  * Helper: Get value from object by path (supports "a.b.c")
  */
@@ -290,6 +291,77 @@ export const splitRandomItems = <T>(
   return result.filter((g) => g.length >= skipSmall);
 };
 
+type MergeMode = 'UPSERT' | 'UPDATE_ONLY' | 'PUSH_ONLY' | 'OVERWRITE';
+export const mergeArraysByMode = <T extends { [key: string]: any; }>(targetArray: T[], sourceArray: T[], idKey: keyof T, mode: MergeMode = 'UPSERT'): T[] => {
+
+  // Use Map to keep track of the existing items in targetArray (for quick lookups)
+  const resultMap = new Map<any, T>();
+
+  // 1. Initialize Map with data from targetArray
+  targetArray.forEach(item => {
+    const idValue = item[idKey];
+    if (idValue !== undefined) {
+      resultMap.set(idValue, item);
+    }
+  });
+
+  // 2. Process sourceArray based on mode
+  sourceArray.forEach(sourceItem => {
+    const idValue = sourceItem[idKey];
+
+    // --- Handling ID-based items ---
+    if (idValue !== undefined) {
+      const isExisting = resultMap.has(idValue);
+
+      if (isExisting) {
+        // ITEM FOUND ALREADY EXISTS (ID MATCH)
+        if (mode === 'UPSERT' || mode === 'UPDATE_ONLY' || mode === 'OVERWRITE') {
+          // UPDATE: Overwrite data
+          const existingItem = resultMap.get(idValue)!;
+          resultMap.set(idValue, { ...existingItem, ...sourceItem });
+          // OVERWRITE: Overwrite completely (use sourceItem only)
+          // resultMap.set(idValue, sourceItem); // Overwrite logic if you want to replace completely
+        }
+        // If mode is 'PUSH_ONLY', we skip updating existing items.
+
+      } else {
+        // ITEM NOT FOUND (NEW ID)
+        if (mode === 'UPSERT' || mode === 'PUSH_ONLY' || mode === 'OVERWRITE') {
+          // PUSH: Add new item to Map
+          resultMap.set(idValue, sourceItem);
+        }
+        // If mode is 'UPDATE_ONLY', we skip adding new.
+      }
+
+    } else {
+      // --- Handling Non-ID items ---
+
+      // On request: Even if the key is not found (missing idKey), still perform merge.
+      // If mode is PUSH_ONLY or UPSERT, we will add this item to the final result array.
+      if (mode === 'PUSH_ONLY' || mode === 'UPSERT' || mode === 'OVERWRITE') {
+        // We can't add to the Map because of the missing ID, so we'll handle the push later.
+        // For items that are missing an ID, we need to make sure they don't have duplicates.
+        // Here, we'll temporarily skip it in the Map loop and add it to the end of the array.
+      }
+      // If mode is UPDATE_ONLY, entries missing ID will be ignored.
+    }
+  });
+
+  // 3. Final result
+  let finalArray: T[] = Array.from(resultMap.values());
+
+  // 4. Add items missing ID if mode allows PUSH
+  if (mode === 'PUSH_ONLY' || mode === 'UPSERT' || mode === 'OVERWRITE') {
+    sourceArray.forEach(sourceItem => {
+      if (sourceItem[idKey] === undefined) {
+        finalArray.push(sourceItem);
+      }
+    });
+  }
+
+  return finalArray;
+}
+
 // store items helper
 export const addItems = <T>(list: T[], itemsToAdd: T | T[]): T[] => {
   const normalizedItems = Array.isArray(itemsToAdd) ? itemsToAdd : [itemsToAdd]
@@ -336,74 +408,95 @@ export const removeItems = <
   return list
 }
 
-type MergeMode = 'UPSERT' | 'UPDATE_ONLY' | 'PUSH_ONLY' | 'OVERWRITE';
-export const mergeArraysByMode = <T extends { [key: string]: any; }>(targetArray: T[], sourceArray: T[], idKey: keyof T, mode: MergeMode = 'UPSERT'): T[] => {
+// Get value by path (supports nested keys like "meta.value")
+function getValueByPath(obj: any, path: string) {
+  return path.split('.').reduce((acc, key) => acc?.[key], obj)
+}
+interface QueryParams {
+  text: string
+  textKeys: string[]
+  keys: object
+  sort: { key: string, value: 1 | -1 }
+  page: number
+  limit: number
+  // [key: string]: any // allow adding arbitrary keys
+}
+export const filterItems = (data: any[], query: QueryParams) => {
+  let result = [...data]
 
-  // Sử dụng Map để theo dõi các mục hiện có trong targetArray (để tìm kiếm nhanh)
-  const resultMap = new Map<any, T>();
+  // ✅ 1. Filter by text (Vietnamese regex without accents, many optional fields)
+  if (
+    query.text &&
+    query.text.trim() !== '' &&
+    Array.isArray(query.textKeys) &&
+    query.textKeys.length > 0
+  ) {
+    const text = viNormalize(query.text.trim()).toLowerCase()
+    const regex = new RegExp(text, 'i')
 
-  // 1. Khởi tạo Map với dữ liệu từ targetArray
-  targetArray.forEach(item => {
-    const idValue = item[idKey];
-    if (idValue !== undefined) {
-      resultMap.set(idValue, item);
-    }
-  });
-
-  // 2. Xử lý sourceArray dựa trên mode
-  sourceArray.forEach(sourceItem => {
-    const idValue = sourceItem[idKey];
-
-    // --- Xử lý các mục có ID (ID-based items) ---
-    if (idValue !== undefined) {
-      const isExisting = resultMap.has(idValue);
-
-      if (isExisting) {
-        // TÌM THẤY MỤC ĐÃ TỒN TẠI (ID MATCH)
-        if (mode === 'UPSERT' || mode === 'UPDATE_ONLY' || mode === 'OVERWRITE') {
-          // CẬP NHẬT: Ghi đè dữ liệu
-          const existingItem = resultMap.get(idValue)!;
-          resultMap.set(idValue, { ...existingItem, ...sourceItem });
-          // OVERWRITE: Ghi đè hoàn toàn (chỉ dùng sourceItem)
-          // resultMap.set(idValue, sourceItem); // Logic OVERWRITE nếu muốn thay thế hoàn toàn
-        }
-        // Nếu mode là 'PUSH_ONLY', chúng ta bỏ qua việc cập nhật mục đã tồn tại.
-
-      } else {
-        // KHÔNG TÌM THẤY MỤC (ID NEW)
-        if (mode === 'UPSERT' || mode === 'PUSH_ONLY' || mode === 'OVERWRITE') {
-          // THÊM MỚI (PUSH): Thêm mục mới vào Map
-          resultMap.set(idValue, sourceItem);
-        }
-        // Nếu mode là 'UPDATE_ONLY', chúng ta bỏ qua việc thêm mới.
-      }
-
-    } else {
-      // --- Xử lý các mục KHÔNG CÓ ID (Non-ID items) ---
-
-      // Theo yêu cầu: Kể cả không tìm thấy khóa (missing idKey), vẫn thực hiện merge.
-      // Nếu mode là PUSH_ONLY hoặc UPSERT, ta sẽ thêm mục này vào mảng kết quả cuối cùng.
-      if (mode === 'PUSH_ONLY' || mode === 'UPSERT' || mode === 'OVERWRITE') {
-        // Chúng ta không thể thêm vào Map vì thiếu ID, nên chúng ta sẽ xử lý việc push sau.
-        // Đối với các mục thiếu ID, chúng ta cần đảm bảo chúng không bị trùng lặp.
-        // Ở đây, ta sẽ tạm thời bỏ qua nó trong vòng lặp Map và thêm vào cuối mảng.
-      }
-      // Nếu mode là UPDATE_ONLY, các mục thiếu ID sẽ bị bỏ qua.
-    }
-  });
-
-  // 3. Kết quả cuối cùng
-  let finalArray: T[] = Array.from(resultMap.values());
-
-  // 4. Thêm các mục thiếu ID nếu mode cho phép PUSH
-  if (mode === 'PUSH_ONLY' || mode === 'UPSERT' || mode === 'OVERWRITE') {
-    sourceArray.forEach(sourceItem => {
-      if (sourceItem[idKey] === undefined) {
-        finalArray.push(sourceItem);
-      }
-    });
+    result = result.filter(item => {
+      return query.textKeys.some((key: string) => {
+        const value = getValueByPath(item, key)
+        if (!value) return false
+        const normalized = viNormalize(String(value)).toLowerCase()
+        return regex.test(normalized)
+      })
+    })
   }
 
-  return finalArray;
+  // ✅ 2. Filter exactly by keys (object key–value)
+  if (query.keys && typeof query.keys === 'object' && Object.keys(query.keys).length > 0) {
+    result = result.filter(item => {
+      return Object.entries(query.keys).every(([field, value]) => {
+        if (!(field in item)) return false
+        // Exact comparison by type and value
+        return item[field] === value
+      })
+    })
+  }
+
+  // ✅ 3. Sort
+  if (query.sort && query.sort.key && query.sort.value) {
+    const sortKey = query.sort.key
+    const sortValue = query.sort.value === -1 ? -1 : 1
+    result = result.sort((a, b) => {
+      const aVal = getValueByPath(a, sortKey)
+      const bVal = getValueByPath(b, sortKey)
+      if (aVal < bVal) return -1 * sortValue
+      if (aVal > bVal) return 1 * sortValue
+      return 0
+    })
+  }
+
+  // ✅ 4. Pagination (limit = 0 => return full)
+  const total = result.length
+  const limit = typeof query.limit === 'number' ? query.limit : 0
+  const page = query.page || 1
+  let items = result
+  let pages = 1
+
+  if (limit > 0) {
+    pages = Math.ceil(total / limit)
+    const start = (page - 1) * limit
+    const end = start + limit
+    items = result.slice(start, end)
+  }
+
+  // ✅ 5. Returns standard results
+  return { items, total, pages, page, limit }
 }
+
+export const updatePropsByCondition = <T extends Record<string, any>>(data: T[], conditions: Record<string, (string | number | boolean)[]>, updateData: Partial<T>): T[] => {
+  if (!Array.isArray(data) || typeof conditions !== 'object' || !updateData) return data
+
+  return data.map(item => {
+    const matched = Object.entries(conditions).every(([key, values]) => {
+      if (!Array.isArray(values)) return true
+      return values.includes(item[key])
+    })
+
+    return matched ? { ...item, ...updateData } : item
+  })
+}
+
 export { };
