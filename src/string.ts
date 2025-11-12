@@ -1,7 +1,11 @@
+export const pathNormalize = (path: string) => {
+  return path.replace(/\\/g, "/");
+}
+
 /**
- * 🔤 Normalize and remove Vietnamese accents using Unicode normalization
- * → Giữ nguyên định dạng chữ, chỉ loại bỏ dấu tiếng Việt
- */
+* 🔤 Normalize and remove Vietnamese accents using Unicode normalization
+* → Keep the text format, only remove Vietnamese accents
+*/
 export function viNormalize(str: string = ""): string {
   return str
     .normalize("NFD")
@@ -38,9 +42,9 @@ export function viRemoveAccents(str: string = ""): string {
 }
 
 /**
- * 🔠 Convert accented string → lowercase ASCII (snake_case, remove specials)
- * Example: "Điện Thoại iPhone 15 Pro!" → "dien_thoai_iphone_15_pro"
- */
+* 🔠 Convert accented string → lowercase ASCII (snake_case, remove specials)
+* Example: "Điện Thoại iPhone 15 Pro!" → "dien_thoai_iphone_15_pro"
+*/
 export function viToAscii(str: string = ""): string {
   return str
     .toLowerCase()
