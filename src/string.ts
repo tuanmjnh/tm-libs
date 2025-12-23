@@ -8,6 +8,7 @@ export const pathNormalize = (path: string) => {
 */
 export function viNormalize(str: string = ""): string {
   return str
+    .trim()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/đ/g, "d")
@@ -47,12 +48,12 @@ export function viRemoveAccents(str: string = ""): string {
 */
 export function viToAscii(str: string = ""): string {
   return str
+    .trim()
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/đ/g, "d")
     .replace(/[^a-z0-9\s_]/g, "")
-    .trim()
     .replace(/\s+/g, "_");
 }
 
@@ -62,15 +63,15 @@ export function viToAscii(str: string = ""): string {
  */
 export function viToSlug(str: string = ""): string {
   return str
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/[^a-z0-9\s-]/g, "")
     .trim()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
+    .toLowerCase()
+    .normalize('NFD') // Separate accents from characters
+    .replace(/[\u0300-\u036f]/g, '') // Remove accents
+    .replace(/[đĐ]/g, 'd') // Convert đ -> d
+    .replace(/([^0-9a-z-\s])/g, '') // Remove special characters
+    .replace(/(\s+)/g, '-') // Convert spaces to dashes
+    .replace(/-+/g, '-') // Remove excess dashes
+    .replace(/^-+|-+$/g, ''); // Remove terminal dashes
 }
 
 /**
